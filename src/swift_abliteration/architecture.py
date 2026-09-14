@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import asdict
 import json
+from dataclasses import asdict
 from typing import Any
 from urllib.request import urlopen
 
@@ -28,7 +28,8 @@ def validate_public_metadata(
         "architecture": model_config.get("architectures") == [cfg.model.architecture],
         "model_type": model_config.get("model_type") == cfg.model.model_type,
         "hidden_size": text.get("hidden_size") == cfg.model.hidden_size,
-        "intermediate_size": text.get("intermediate_size") == cfg.model.intermediate_size,
+        "intermediate_size": text.get("intermediate_size")
+        == cfg.model.intermediate_size,
         "vocab_size": text.get("vocab_size") == cfg.model.vocab_size,
         "num_layers": text.get("num_hidden_layers") == cfg.model.num_layers,
     }
@@ -68,18 +69,21 @@ def validate_public_metadata(
         "planned_tensor_count": len(selected),
         "planned_tensors": selected,
         "checkpoint_bytes": weight_index.get("metadata", {}).get("total_size"),
-        "full_weights_downloaded": False,
     }
 
 
 def expected_writer_count(cfg: ExperimentConfig) -> int:
     layers = cfg.edit.last_layer - cfg.edit.first_layer + 1
-    per_layer = int(cfg.edit.include_attention_output) + int(cfg.edit.include_mlp_output)
+    per_layer = int(cfg.edit.include_attention_output) + int(
+        cfg.edit.include_mlp_output
+    )
     total = layers * per_layer
     if cfg.edit.include_embedding:
         total += 1
     if cfg.edit.include_mtp:
-        total += int(cfg.edit.include_attention_output) + int(cfg.edit.include_mlp_output)
+        total += int(cfg.edit.include_attention_output) + int(
+            cfg.edit.include_mlp_output
+        )
     return total
 
 
@@ -94,7 +98,11 @@ def select_weight_names(
     for layer in range(cfg.edit.first_layer, cfg.edit.last_layer + 1):
         prefix = f"model.language_model.layers.{layer}"
         if cfg.edit.include_attention_output:
-            mixer = "linear_attn.out_proj" if layer_types[layer] == "linear_attention" else "self_attn.o_proj"
+            mixer = (
+                "linear_attn.out_proj"
+                if layer_types[layer] == "linear_attention"
+                else "self_attn.o_proj"
+            )
             names.append(f"{prefix}.{mixer}.weight")
         if cfg.edit.include_mlp_output:
             names.append(f"{prefix}.mlp.down_proj.weight")

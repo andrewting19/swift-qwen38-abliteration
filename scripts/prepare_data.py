@@ -6,8 +6,8 @@ import csv
 import hashlib
 import io
 import json
-from pathlib import Path
 import tomllib
+from pathlib import Path
 from urllib.request import urlopen
 
 
@@ -16,7 +16,9 @@ def text_from_row(row: dict, columns: list[str]) -> str:
         value = row.get(column)
         if isinstance(value, str) and value.strip():
             return value.strip()
-    raise ValueError(f"No usable text in columns {columns}; available columns: {sorted(row)}")
+    raise ValueError(
+        f"No usable text in columns {columns}; available columns: {sorted(row)}"
+    )
 
 
 def write_jsonl(path: Path, records: list[dict]) -> str:
@@ -65,7 +67,10 @@ def main() -> int:
         for purpose in ("direction", "evaluation"):
             indices = source[f"{purpose}_indices"]
             records = [
-                {"source_index": index, "text": text_from_row(dataset[index], source["text_columns"])}
+                {
+                    "source_index": index,
+                    "text": text_from_row(dataset[index], source["text_columns"]),
+                }
                 for index in indices
             ]
             path = output / f"{purpose}_{label}.jsonl"
@@ -79,7 +84,9 @@ def main() -> int:
                 "source_sha256": source["source_sha256"],
             }
     manifest_path = output / "manifest.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     review_lines = [
         "# Exact Prompt Sets",
         "",
@@ -90,7 +97,12 @@ def main() -> int:
         review_lines.extend([f"## {heading}", ""])
         for number, record in enumerate(records, start=1):
             review_lines.extend(
-                [f"{number}. Source row `{record['source_index']}`", "", f"   {record['text']}", ""]
+                [
+                    f"{number}. Source row `{record['source_index']}`",
+                    "",
+                    f"   {record['text']}",
+                    "",
+                ]
             )
     (output / "PROMPT_SETS.md").write_text("\n".join(review_lines), encoding="utf-8")
     print(json.dumps(manifest, indent=2, sort_keys=True))

@@ -5,6 +5,7 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+*.egg-info/
 
 # Large or generated experiment data
 artifacts/*
@@ -14,6 +15,7 @@ runs/*
 !runs/preflight-*.json
 !runs/README.md
 data/prepared/
+benchmarks/data/
 
 # Hugging Face and model files
 .cache/

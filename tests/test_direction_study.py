@@ -1,6 +1,6 @@
-from pathlib import Path
 import sys
 import unittest
+from pathlib import Path
 
 import numpy as np
 
@@ -28,12 +28,16 @@ class DirectionStudyTests(unittest.TestCase):
     def test_explicit_coordinate_mask(self):
         harmful = np.array([[1000, 2], [1000, 2]], dtype=np.float32)
         harmless = np.zeros((2, 2), dtype=np.float32)
-        direction = coordinate_masked_direction(harmful, harmless, np.array([True, False]))
+        direction = coordinate_masked_direction(
+            harmful, harmless, np.array([True, False])
+        )
         np.testing.assert_allclose(direction, [0, 1], atol=1e-6)
 
     def test_bootstrap_is_stable_for_clean_groups(self):
         harmful = np.array([[2, -0.1], [2, 0.0], [2, 0.1], [2, 0.05]], dtype=np.float32)
-        harmless = np.array([[0, -0.1], [0, 0.0], [0, 0.1], [0, 0.05]], dtype=np.float32)
+        harmless = np.array(
+            [[0, -0.1], [0, 0.0], [0, 0.1], [0, 0.05]], dtype=np.float32
+        )
         reference = refusal_direction(harmful, harmless)
         scores = bootstrap_cosine_stability(harmful, harmless, reference, samples=30)
         self.assertGreater(float(scores.min()), 0.99)

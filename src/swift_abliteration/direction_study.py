@@ -14,7 +14,9 @@ def winsorized_direction(
     harmful = np.asarray(harmful, dtype=np.float32)
     harmless = np.asarray(harmless, dtype=np.float32)
     if harmful.ndim != 2 or harmless.ndim != 2 or harmful.shape[1] != harmless.shape[1]:
-        raise ValueError("Activation groups must have matching [prompts, hidden] shapes.")
+        raise ValueError(
+            "Activation groups must have matching [prompts, hidden] shapes."
+        )
     if not 0.0 < quantile < 1.0:
         raise ValueError("Quantile must be between 0 and 1.")
     pooled = np.concatenate([harmful, harmless], axis=0)
@@ -86,4 +88,6 @@ def standardized_separation(
     pooled_variance = (harmful_scores.var(ddof=1) + harmless_scores.var(ddof=1)) / 2
     if pooled_variance <= 0:
         raise ValueError("Projected activation scores have no within-group variance.")
-    return float((harmful_scores.mean() - harmless_scores.mean()) / np.sqrt(pooled_variance))
+    return float(
+        (harmful_scores.mean() - harmless_scores.mean()) / np.sqrt(pooled_variance)
+    )

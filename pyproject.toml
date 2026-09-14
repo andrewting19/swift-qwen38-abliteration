@@ -11,11 +11,17 @@ dependencies = ["numpy>=2.0,<3"]
 
 [project.optional-dependencies]
 gpu = [
-  "accelerate==1.12.0",
+  "accelerate==1.15.0",
   "datasets==5.0.1",
+  "pillow==12.3.0",
   "safetensors==0.8.0",
   "torch==2.14.0",
-  "transformers==5.17.0",
+  "torchvision==0.29.0",
+  "transformers[serving]==5.17.0",
+]
+eval = [
+  "lm-eval[api]==0.4.13",
+  "openai==3.13.0",
 ]
 
 [project.scripts]

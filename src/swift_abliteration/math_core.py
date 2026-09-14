@@ -17,7 +17,9 @@ def refusal_direction(harmful: np.ndarray, harmless: np.ndarray) -> np.ndarray:
     return raw / norm
 
 
-def project_output_weight(weight: np.ndarray, direction: np.ndarray, alpha: float = 1.0) -> np.ndarray:
+def project_output_weight(
+    weight: np.ndarray, direction: np.ndarray, alpha: float = 1.0
+) -> np.ndarray:
     """Project a hidden-size output axis: W - alpha*r*(r^T W)."""
     w = np.asarray(weight, dtype=np.float32)
     r = _unit_direction(direction)
@@ -26,7 +28,9 @@ def project_output_weight(weight: np.ndarray, direction: np.ndarray, alpha: floa
     return w - np.float32(alpha) * np.outer(r, r @ w)
 
 
-def project_embedding_rows(embedding: np.ndarray, direction: np.ndarray, alpha: float = 1.0) -> np.ndarray:
+def project_embedding_rows(
+    embedding: np.ndarray, direction: np.ndarray, alpha: float = 1.0
+) -> np.ndarray:
     """Project a hidden-size embedding axis: E - alpha*(E r)*r^T."""
     e = np.asarray(embedding, dtype=np.float32)
     r = _unit_direction(direction)

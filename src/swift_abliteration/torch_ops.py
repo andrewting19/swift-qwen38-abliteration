@@ -9,7 +9,9 @@ def require_torch():
     try:
         import torch
     except ImportError as exc:
-        raise RuntimeError("Install the GPU dependencies with: pip install -e '.[gpu]'") from exc
+        raise RuntimeError(
+            "Install the GPU dependencies with: pip install -e '.[gpu]'"
+        ) from exc
     return torch
 
 
@@ -26,7 +28,9 @@ def calculate_direction(harmful: Iterable[Any], harmless: Iterable[Any]):
     return raw / norm
 
 
-def project_output_weight_(weight: Any, direction: Any, alpha: float, column_chunk: int = 1024) -> None:
+def project_output_weight_(
+    weight: Any, direction: Any, alpha: float, column_chunk: int = 1024
+) -> None:
     """Edit a [hidden, input] tensor with bounded FP32 temporary memory."""
     torch = require_torch()
     r = direction.detach().to(device=weight.device, dtype=torch.float32)
@@ -41,7 +45,9 @@ def project_output_weight_(weight: Any, direction: Any, alpha: float, column_chu
             weight[:, start:stop].copy_(block.to(dtype=weight.dtype))
 
 
-def project_embedding_rows_(weight: Any, direction: Any, alpha: float, row_chunk: int = 1024) -> None:
+def project_embedding_rows_(
+    weight: Any, direction: Any, alpha: float, row_chunk: int = 1024
+) -> None:
     """Edit a [vocab, hidden] tensor with bounded FP32 temporary memory."""
     torch = require_torch()
     r = direction.detach().to(device=weight.device, dtype=torch.float32)

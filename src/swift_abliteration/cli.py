@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import asdict
 import json
-from pathlib import Path
 import sys
+from dataclasses import asdict
+from pathlib import Path
 
 from .architecture import hf_json, validate_public_metadata
 from .config import load_config
@@ -24,6 +24,7 @@ def cmd_preflight(args: argparse.Namespace) -> int:
     model_config = hf_json(cfg.model.id, cfg.model.revision, "config.json")
     index = hf_json(cfg.model.id, cfg.model.revision, "model.safetensors.index.json")
     report = validate_public_metadata(cfg, model_config, index)
+    report["full_weights_downloaded"] = False
     _write_report(report, args.output)
     return 0
 
@@ -51,14 +52,18 @@ def cmd_gpu(args: argparse.Namespace) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="swift-abliterate")
     sub = parser.add_subparsers(dest="command", required=True)
-    preflight = sub.add_parser("preflight", help="Validate public metadata without model weights.")
+    preflight = sub.add_parser(
+        "preflight", help="Validate public metadata without model weights."
+    )
     preflight.add_argument("--config", required=True)
     preflight.add_argument("--output")
     preflight.set_defaults(func=cmd_preflight)
     show = sub.add_parser("show-config")
     show.add_argument("--config", required=True)
     show.set_defaults(func=cmd_show)
-    gpu = sub.add_parser("gpu-run", help="Guarded boundary for the later full-model stage.")
+    gpu = sub.add_parser(
+        "gpu-run", help="Guarded boundary for the later full-model stage."
+    )
     gpu.add_argument("--config", required=True)
     gpu.add_argument("--acknowledge-large-model-run", action="store_true")
     gpu.set_defaults(func=cmd_gpu)

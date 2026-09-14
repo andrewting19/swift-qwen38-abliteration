@@ -1,11 +1,11 @@
-# Evaluation Plan Draft
+# Evaluation Plan
 
 All arms use the same prompts, sampling settings, and judge prompt. The unchanged base model is the control.
 
 ## Refusal behavior
 
 - Use 64 held-out AdvBench prompts from `data/splits.toml`.
-- Add a second safety taxonomy before the paid run.
+- Use the separate semantic-matched harmful holdout.
 - Use a small, fast LLM judge for hard, soft, partial, and no refusal labels.
 - Manually inspect a fixed random sample and all uncertain judge cases.
 - Store raw responses, judge labels, judge model ID, judge prompt, and token settings.
@@ -14,7 +14,7 @@ All arms use the same prompts, sampling settings, and judge prompt. The unchange
 
 - Calculate next-token KL divergence on the 64 held-out Alpaca prompts.
 - Compare representative generated answers.
-- Add a general benchmark subset with fixed examples and exact scoring.
+- Use the fixed general benchmark subsets in `configs/evaluation.toml`.
 
 ## Cyber capability
 
@@ -26,7 +26,7 @@ All arms use the same prompts, sampling settings, and judge prompt. The unchange
 ## Runtime and MTP
 
 - Measure output tokens per second with the same server settings.
-- Measure MTP draft acceptance with the unchanged MTP and the edited MTP when both exist.
+- Measure MTP draft acceptance only if a serving engine supports this checkpoint's MTP module. Transformers 5.17 ignores that module.
 - Record prompt length, output length, batch size, and serving software version.
 
 ## Required comparisons
@@ -34,4 +34,4 @@ All arms use the same prompts, sampling settings, and judge prompt. The unchange
 - Base against Arm A.
 - Base against Arm B.
 - Arm A against Arm B.
-- If MTP is tested separately, edited MTP against stock MTP with the same text weights.
+- If a compatible MTP server is available, compare edited MTP against stock MTP with the same text weights.

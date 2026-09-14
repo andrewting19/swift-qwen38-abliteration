@@ -1,0 +1,28 @@
+[lm_eval]
+repository = "EleutherAI/lm-evaluation-harness"
+revision = "d6de81643928d653435c431bae19945d41d32520"
+package_version = "0.4.13"
+
+[datasets.mmlu_pro]
+id = "TIGER-Lab/MMLU-Pro"
+revision = "b189ec765aa7ed75c8acfea42df31fdae71f97be"
+
+[datasets.gsm8k]
+id = "openai/gsm8k"
+revision = "740312add88f781978c0658806c59bc2815b9866"
+
+[datasets.ifeval]
+id = "google/IFEval"
+revision = "966cd89545d6b6acfd7638bc708b98261ca58e84"
+
+[datasets.wmdp]
+id = "cais/wmdp"
+revision = "7125571f22f032c56415e7980f48d877dd830ff8"
+
+[cybermetric]
+repository = "cybermetric/CyberMetric"
+revision = "294662b03be73a9c7c73918f687882c1ba637c47"
+small_url = "https://raw.githubusercontent.com/cybermetric/CyberMetric/294662b03be73a9c7c73918f687882c1ba637c47/CyberMetric-80-v1.json"
+small_sha256 = "ffdda528c5f344871ad0a9ecef5c64ccf9964d68c3047ac0adaac520b2fc7dc6"
+final_url = "https://raw.githubusercontent.com/cybermetric/CyberMetric/294662b03be73a9c7c73918f687882c1ba637c47/CyberMetric-500-v1.json"
+final_sha256 = "b0dcf5cb0b51792e3134bec8cecadfe9c5ecc543fb5abfcece99f041066701a5"

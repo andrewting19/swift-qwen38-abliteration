@@ -2,6 +2,7 @@
 reference = "plain_difference_of_means"
 bootstrap_samples = 500
 seed = 3819
+direction_layers = [24, 32, 38, 44, 52]
 
 [[candidate]]
 name = "plain"

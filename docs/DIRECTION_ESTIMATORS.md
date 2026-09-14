@@ -31,6 +31,12 @@ The useful threshold depends on Swift's activation distribution. Before selectin
 
 If the outliers occur equally in both groups, masking them may have little effect. If they occur in only a few prompts, clipping can make the direction more stable. If an outlier carries real refusal information, clipping it can make the direction worse.
 
+## Direction-layer scan
+
+Layer 38 is an initial heuristic, not a result. The first capture records the same last-prompt-token activation at layers 24, 32, 38, 44, and 52. All five values are collected during each forward pass, so this scan does not require five model runs.
+
+For each layer, the analysis compares both data sources and all four estimators. A layer is not selected from cluster distance alone. The direction is measured at that one layer, then the reversible screen projects it from every target-layer output in the selected edit arm. It must have stable bootstrap directions, held-out separation, causal refusal reduction, and low harmless KL.
+
 ## Direction checks before weight editing
 
 For every candidate direction, calculate:
