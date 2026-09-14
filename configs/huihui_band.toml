@@ -1,0 +1,37 @@
+[run]
+name = "huihui_band"
+seed = 3819
+
+[model]
+id = "ukisai/Swift-Qwen3.8-27b"
+revision = "1b30aaaf753fe5c1cb51ada2ea0367a53445359c"
+architecture = "Qwen3_5ForConditionalGeneration"
+model_type = "qwen3_5"
+hidden_size = 5120
+intermediate_size = 17408
+vocab_size = 248320
+mixer_input_size = 6144
+num_layers = 64
+linear_attention_layers = 48
+full_attention_layers = 16
+
+[direction]
+layer = 38
+rank = 1
+method = "plain_difference_of_means"
+harmful_count = 32
+harmless_count = 32
+last_prompt_token = true
+massive_activation_mask = "disabled"
+
+[edit]
+alpha = 1.0
+first_layer = 18
+last_layer = 51
+include_attention_output = true
+include_mlp_output = true
+include_embedding = false
+include_mtp = false
+edit_compute_dtype = "float32"
+stored_dtype = "bfloat16"
+leave_vision_unchanged = true

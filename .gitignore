@@ -1,0 +1,31 @@
+.DS_Store
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Large or generated experiment data
+artifacts/*
+!artifacts/.gitkeep
+runs/*
+!runs/.gitkeep
+!runs/preflight-*.json
+!runs/README.md
+data/prepared/
+
+# Hugging Face and model files
+.cache/
+*.safetensors
+*.gguf
+*.bin
+
+# Local research checkouts are not project source.
+work/
+
+# Secrets
+.env
+.env.*
+*.pem
+*token*

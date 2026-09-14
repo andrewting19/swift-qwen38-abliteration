@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=75", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "swift-qwen38-abliteration"
+version = "0.1.0"
+description = "Reproducible refusal-direction experiments for Swift Qwen3.8 27B"
+requires-python = ">=3.11"
+dependencies = ["numpy>=2.0,<3"]
+
+[project.optional-dependencies]
+gpu = [
+  "accelerate==1.12.0",
+  "datasets==5.0.1",
+  "safetensors==0.8.0",
+  "torch==2.14.0",
+  "transformers==5.17.0",
+]
+
+[project.scripts]
+swift-abliterate = "swift_abliteration.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

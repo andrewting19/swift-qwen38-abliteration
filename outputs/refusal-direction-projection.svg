@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="780" viewBox="0 0 1400 780">
+  <defs>
+    <marker id="arrow-blue" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#2563eb"/>
+    </marker>
+    <marker id="arrow-red" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#dc2626"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#16a34a"/>
+    </marker>
+    <style>
+      .title { font: 700 28px system-ui, sans-serif; fill: #111827; }
+      .subtitle { font: 600 21px system-ui, sans-serif; fill: #374151; }
+      .label { font: 18px system-ui, sans-serif; fill: #1f2937; }
+      .small { font: 16px system-ui, sans-serif; fill: #4b5563; }
+      .math { font: italic 18px Georgia, serif; fill: #111827; }
+    </style>
+  </defs>
+
+  <rect width="1400" height="780" fill="#f8fafc"/>
+  <text x="700" y="45" text-anchor="middle" class="title">Refusal direction as ordinary vector projection</text>
+
+  <!-- Left panel -->
+  <rect x="35" y="75" width="650" height="650" rx="18" fill="#ffffff" stroke="#d1d5db" stroke-width="2"/>
+  <text x="360" y="115" text-anchor="middle" class="subtitle">2D picture</text>
+
+  <!-- Axes -->
+  <line x1="105" y1="590" x2="625" y2="590" stroke="#16a34a" stroke-width="4" marker-end="url(#arrow-green)"/>
+  <line x1="190" y1="655" x2="190" y2="155" stroke="#dc2626" stroke-width="4" marker-end="url(#arrow-red)"/>
+  <text x="615" y="625" text-anchor="end" class="label" fill="#15803d">all other information</text>
+  <text x="207" y="170" class="label" fill="#b91c1c">refusal direction r</text>
+  <text x="210" y="620" class="small">zero refusal component</text>
+
+  <!-- Original activation h -->
+  <line x1="190" y1="590" x2="510" y2="290" stroke="#2563eb" stroke-width="5" marker-end="url(#arrow-blue)"/>
+  <circle cx="510" cy="290" r="8" fill="#2563eb"/>
+  <text x="527" y="280" class="label" fill="#1d4ed8">activation h</text>
+
+  <!-- Projected activation -->
+  <line x1="190" y1="590" x2="510" y2="590" stroke="#16a34a" stroke-width="6" marker-end="url(#arrow-green)"/>
+  <circle cx="510" cy="590" r="8" fill="#16a34a"/>
+  <text x="500" y="565" text-anchor="end" class="label" fill="#15803d">projected activation h⊥</text>
+
+  <!-- Refusal component -->
+  <line x1="510" y1="590" x2="510" y2="290" stroke="#dc2626" stroke-width="4" stroke-dasharray="10 8" marker-end="url(#arrow-red)"/>
+  <text x="528" y="445" class="math">(h · r)r</text>
+  <text x="528" y="470" class="small">refusal component</text>
+
+  <!-- Subtraction arrow -->
+  <line x1="545" y1="315" x2="545" y2="560" stroke="#7c3aed" stroke-width="3" marker-end="url(#arrow-blue)"/>
+  <text x="562" y="505" class="small" fill="#6d28d9">subtract this part</text>
+
+  <text x="360" y="690" text-anchor="middle" class="math">h⊥ = h − (h · r)r</text>
+
+  <!-- Right panel -->
+  <rect x="715" y="75" width="650" height="650" rx="18" fill="#ffffff" stroke="#d1d5db" stroke-width="2"/>
+  <text x="1040" y="115" text-anchor="middle" class="subtitle">3D picture</text>
+
+  <!-- Zero-refusal plane -->
+  <polygon points="805,555 1030,655 1285,505 1060,405" fill="#dcfce7" stroke="#16a34a" stroke-width="3" opacity="0.88"/>
+  <text x="1115" y="630" class="label" fill="#15803d">zero-refusal plane</text>
+  <text x="1115" y="654" class="small">many useful directions can remain here</text>
+
+  <!-- Origin and refusal axis -->
+  <circle cx="1045" cy="530" r="7" fill="#111827"/>
+  <line x1="1045" y1="640" x2="1045" y2="165" stroke="#dc2626" stroke-width="5" marker-end="url(#arrow-red)"/>
+  <text x="1063" y="185" class="label" fill="#b91c1c">refusal axis r</text>
+  <text x="1062" y="225" class="small">positive: more along r</text>
+  <text x="1062" y="250" class="small">negative: opposite r</text>
+
+  <!-- Activation and projection -->
+  <line x1="1045" y1="530" x2="1240" y2="290" stroke="#2563eb" stroke-width="5" marker-end="url(#arrow-blue)"/>
+  <circle cx="1240" cy="290" r="8" fill="#2563eb"/>
+  <text x="1255" y="280" class="label" fill="#1d4ed8">h</text>
+
+  <line x1="1045" y1="530" x2="1240" y2="470" stroke="#16a34a" stroke-width="5" marker-end="url(#arrow-green)"/>
+  <circle cx="1240" cy="470" r="8" fill="#16a34a"/>
+  <text x="1255" y="465" class="label" fill="#15803d">h⊥</text>
+
+  <line x1="1240" y1="470" x2="1240" y2="290" stroke="#dc2626" stroke-width="4" stroke-dasharray="10 8"/>
+  <text x="1255" y="385" class="small" fill="#b91c1c">part along r</text>
+
+  <text x="1040" y="690" text-anchor="middle" class="small">In N dimensions, this plane becomes an (N−1)-dimensional hyperplane.</text>
+</svg>
