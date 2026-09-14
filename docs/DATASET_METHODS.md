@@ -33,4 +33,4 @@ We have two independent direction measurements:
 1. **Reference direction:** 32 fixed AdvBench rows and 32 fixed Alpaca rows. This uses the same named source families as Orca and matches Sumandora's group size. It is not an exact Orca reproduction because Orca's prompt count, row IDs, and sample rule are not public.
 2. **Matched direction:** 32 fixed semantic pairs from `heretic-org/Semantic-Harmful` and `heretic-org/Semantic-Harmless`.
 
-Each direction source has a separate 64-pair or 64-prompt evaluation split. All revisions, row IDs, and hashes are fixed. Raw harmful text is excluded from Git.
+Each direction source has a separate 64-item candidate-validation split and a separate 64-item final-test split. All three roles are disjoint. All revisions, row IDs, and hashes are fixed. Raw harmful text is excluded from Git.

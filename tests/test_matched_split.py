@@ -9,11 +9,18 @@ class MatchedSplitTests(unittest.TestCase):
             spec = tomllib.load(handle)
         direction = spec["direction_pair_indices"]
         evaluation = spec["evaluation_pair_indices"]
+        final_test = spec["final_test_pair_indices"]
         self.assertEqual(len(direction), 32)
         self.assertEqual(len(evaluation), 64)
+        self.assertEqual(len(final_test), 64)
         self.assertFalse(set(direction) & set(evaluation))
+        self.assertFalse(set(direction) & set(final_test))
+        self.assertFalse(set(evaluation) & set(final_test))
         self.assertTrue(
-            all(0 <= index < spec["pair_count"] for index in direction + evaluation)
+            all(
+                0 <= index < spec["pair_count"]
+                for index in direction + evaluation + final_test
+            )
         )
 
 

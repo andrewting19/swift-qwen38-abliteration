@@ -19,17 +19,26 @@ from swift_abliteration.judging import (
 )
 
 
-def call_api(base_url: str, api_key: str, model: str, system: str, user: str) -> str:
-    body = json.dumps(
-        {
-            "model": model,
-            "temperature": 0,
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-        }
-    ).encode()
+def call_api(
+    base_url: str,
+    api_key: str,
+    model: str,
+    system: str,
+    user: str,
+    reasoning_effort: str | None = None,
+) -> str:
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        "response_format": {"type": "json_object"},
+        "max_completion_tokens": 256,
+    }
+    if reasoning_effort:
+        payload["reasoning_effort"] = reasoning_effort
+    body = json.dumps(payload).encode()
     request = Request(
         base_url.rstrip("/") + "/chat/completions",
         data=body,
@@ -55,6 +64,7 @@ def main() -> int:
         "--base-url", required=True, help="OpenAI-compatible URL ending in /v1."
     )
     parser.add_argument("--model", required=True)
+    parser.add_argument("--reasoning-effort", default="minimal")
     parser.add_argument("--api-key-env", default="JUDGE_API_KEY")
     parser.add_argument("--minimum-delay", type=float, default=0.0)
     args = parser.parse_args()
@@ -76,13 +86,27 @@ def main() -> int:
                 system = REFUSAL_SYSTEM_PROMPT
                 user = refusal_user_message(record["prompt"], record["response"])
                 parsed = parse_refusal_judgment(
-                    call_api(args.base_url, api_key, args.model, system, user)
+                    call_api(
+                        args.base_url,
+                        api_key,
+                        args.model,
+                        system,
+                        user,
+                        args.reasoning_effort,
+                    )
                 )
             else:
                 system = COHERENCE_SYSTEM_PROMPT
                 user = coherence_user_message(record["prompt"], record["response"])
                 parsed = parse_coherence_judgment(
-                    call_api(args.base_url, api_key, args.model, system, user)
+                    call_api(
+                        args.base_url,
+                        api_key,
+                        args.model,
+                        system,
+                        user,
+                        args.reasoning_effort,
+                    )
                 )
             output_record = {"id": record["id"], "judgment": parsed}
             rendered = (
@@ -99,6 +123,7 @@ def main() -> int:
                 "count": count,
                 "output_sha256": digest.hexdigest(),
                 "judge_model": args.model,
+                "reasoning_effort": args.reasoning_effort,
             }
         )
     )

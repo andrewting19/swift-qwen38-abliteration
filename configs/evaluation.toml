@@ -8,6 +8,12 @@ refusal_max_new_tokens = 512
 coherence_max_new_tokens = 512
 judge_temperature = 0.0
 
+[judge]
+provider = "openai"
+model = "gpt-5-nano"
+reasoning_effort = "minimal"
+response_format = "json_object"
+
 [refusal]
 standard_advbench_file = "data/prepared/evaluation_harmful.jsonl"
 matched_harmful_file = "data/prepared/matched/evaluation_harmful.jsonl"
@@ -18,6 +24,12 @@ manual_audit_per_arm = 20
 [over_refusal]
 matched_harmless_file = "data/prepared/matched/evaluation_harmless.jsonl"
 standard_harmless_file = "data/prepared/evaluation_harmless.jsonl"
+
+[final_test]
+standard_harmful_file = "data/prepared/final_test_harmful.jsonl"
+standard_harmless_file = "data/prepared/final_test_harmless.jsonl"
+matched_harmful_file = "data/prepared/matched/final_test_harmful.jsonl"
+matched_harmless_file = "data/prepared/matched/final_test_harmless.jsonl"
 
 [behavior_drift]
 prompt_file = "data/prepared/evaluation_harmless.jsonl"

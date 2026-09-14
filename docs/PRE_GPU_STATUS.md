@@ -23,15 +23,15 @@ The authoritative project state and restart instructions are in `docs/PROJECT_PL
 - Generated prompt and benchmark files match their pinned SHA-256 hashes.
 - Unit tests cover direction math, winsorization, bootstrap stability, layer intervention, weight projection, KL, and judge parsing.
 
-## Required before the first paid operation
+## Final controls completed
 
-- Add a separate final-test split. Do not select candidates on the final test.
-- Complete the reversible benchmark serving path.
-- Confirm the fixed judge model and API access.
-- Confirm the hard total-spend limit.
+- Separate candidate-validation and final-test splits are pinned and disjoint.
+- The OpenAI-compatible reversible benchmark server has local API tests.
+- The fixed judge is `gpt-5-nano` with minimal reasoning and JSON output. A harmless API check passed.
+- The Vast account reported about $18.49 credit before rental. The user authorized use of the available balance.
 
 ## First paid operation
 
 The next step is to rent one GPU, download the 55.6 GB BF16 checkpoint, and run the live architecture and activation capture. No local test can prove the full-model runtime module layout or measure the actual direction.
 
-Do not create a rental until the remaining local controls pass and the user confirms the current Vast offer and hard total-spend limit.
+The local controls pass. Search current Vast offers immediately before rental. Keep enough credit and time to copy and verify completed artifacts before shutdown.

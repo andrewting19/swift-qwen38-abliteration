@@ -38,8 +38,10 @@ def main() -> int:
 
     direction_ids = spec["direction_pair_indices"]
     evaluation_ids = spec["evaluation_pair_indices"]
-    if set(direction_ids) & set(evaluation_ids):
-        raise ValueError("Direction and evaluation pair IDs overlap.")
+    final_test_ids = spec["final_test_pair_indices"]
+    groups = [set(direction_ids), set(evaluation_ids), set(final_test_ids)]
+    if any(groups[i] & groups[j] for i in range(3) for j in range(i + 1, 3)):
+        raise ValueError("Direction, evaluation, and final-test pair IDs overlap.")
 
     output = Path(args.output_dir)
     output.mkdir(parents=True, exist_ok=True)
@@ -54,6 +56,7 @@ def main() -> int:
     for purpose, pair_ids in (
         ("direction", direction_ids),
         ("evaluation", evaluation_ids),
+        ("final_test", final_test_ids),
     ):
         chosen = [pairs[index] for index in pair_ids]
         score_report[purpose] = {

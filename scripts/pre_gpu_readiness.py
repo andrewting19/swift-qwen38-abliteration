@@ -117,6 +117,8 @@ def main() -> int:
         "scripts/capture_activations.py",
         "scripts/analyze_directions.py",
         "scripts/screen_directions.py",
+        "scripts/serve_reversible.py",
+        "src/swift_abliteration/reversible_server.py",
         "src/swift_abliteration/intervention.py",
         "src/swift_abliteration/checkpoint_edit.py",
         "scripts/apply_weight_edit.py",

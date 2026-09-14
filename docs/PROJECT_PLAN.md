@@ -17,7 +17,7 @@ The direction-quality analysis and the final evaluation report are primary outpu
 - Do not quantize, publish, or upload a model.
 - Use one rented GPU at a time.
 - Do not add Vast.ai credit automatically.
-- The user reports adding another $10 of Vast credit. The final total-spend limit is not confirmed.
+- The user reports adding $15 of additional Vast credit and authorizes use until the Vast credit balance is zero. Preserve and verify artifacts before the last usable credit is consumed.
 - Do not put raw harmful prompts or harmful generations in Git or in the chat.
 
 ## Experiment design
@@ -35,7 +35,7 @@ For each source, use three disjoint roles:
 - Candidate validation: 64 harmful and 64 harmless prompts.
 - Final test: 64 harmful and 64 harmless prompts.
 
-The current repository has the direction and one 64-item holdout for each source. Before rental, add the separate final-test split. Candidate selection must not use the final test.
+The repository has direction, candidate-validation, and final-test splits for each source. Candidate selection must not use the final test.
 
 ### Direction candidates
 
@@ -91,14 +91,16 @@ Do not use the final test until one candidate and its settings are frozen.
 
 ## Execution order
 
+Stage 0 is complete. The next action is Stage 1.
+
 ### Stage 0: Finish local controls
 
-1. Add separate validation and final-test prompt splits without printing harmful text.
-2. Add the reversible benchmark serving path.
-3. Confirm the fixed external judge model and API access.
+1. Verify the separate validation and final-test prompt splits without printing harmful text.
+2. Verify the reversible benchmark serving path.
+3. Verify the fixed `gpt-5-nano` judge with minimal reasoning and JSON output.
 4. Run all unit tests, command checks, prompt hashes, and package checks.
 5. Run a live Vast offer search.
-6. Confirm the user's hard total-spend limit.
+6. Record the current credit balance and keep enough credit for artifact transfer and shutdown.
 
 ### Stage 1: Rent and verify
 

@@ -64,7 +64,7 @@ def main() -> int:
     for label in ("harmful", "harmless"):
         source = spec[label]
         dataset = load_pinned_rows(source)
-        for purpose in ("direction", "evaluation"):
+        for purpose in ("direction", "evaluation", "final_test"):
             indices = source[f"{purpose}_indices"]
             records = [
                 {
