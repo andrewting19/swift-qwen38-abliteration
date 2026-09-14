@@ -1,0 +1,26 @@
+[study]
+reference = "plain_difference_of_means"
+bootstrap_samples = 500
+seed = 3819
+
+[[candidate]]
+name = "plain"
+method = "plain_difference_of_means"
+
+[[candidate]]
+name = "winsor_990"
+method = "pooled_global_winsorization"
+quantile = 0.990
+
+[[candidate]]
+name = "winsor_995"
+method = "pooled_global_winsorization"
+quantile = 0.995
+
+[[candidate]]
+name = "winsor_999"
+method = "pooled_global_winsorization"
+quantile = 0.999
+
+# A coordinate-mask implementation exists, but this file does not select a
+# mask. Orca did not publish the algorithm that produced its mask.

@@ -36,8 +36,8 @@ Do this only after review:
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install --upgrade pip
-python3 -m pip install -e '.[gpu]'
 python3 scripts/prepare_data.py --split-file data/splits.toml
+python3 -m pip install -e '.[gpu]'
 ```
 
 The future full-model command requires `--acknowledge-large-model-run`. This switch is a safety boundary. It makes an accidental local run fail before weight download.
