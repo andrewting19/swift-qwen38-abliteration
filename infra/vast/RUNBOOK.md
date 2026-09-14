@@ -2,6 +2,8 @@
 
 This runbook does not create an instance automatically. Rental remains a manual, reviewed action.
 
+Read `docs/PROJECT_PLAN.md` first. It defines the current authority. The current approved run stops after reversible evaluation, artifact preservation, and result review. It does not create a permanent checkpoint.
+
 ## Required offer
 
 - One GPU with at least 75 GiB VRAM.
@@ -14,7 +16,7 @@ This runbook does not create an instance automatically. Rental remains a manual,
 
 Preferred GPU: RTX PRO 6000 96 GB. H100 80 GB or H200 141 GB are acceptable if their total price is competitive.
 
-The live read-only search on 2026-09-14 found 96 GB RTX PRO 6000 offers starting near $1.19 per hour including 300 GB storage. Offers can disappear or change. Run `infra/vast/search_offers.sh` immediately before rental.
+The most recent read-only search on 2026-09-14 found 96 GB RTX PRO 6000 offers near $1.40 to $1.45 per hour including 300 GB storage. Offers can disappear or change. Run `infra/vast/search_offers.sh` immediately before rental.
 
 ## Disk plan
 
@@ -28,7 +30,7 @@ Total allocation: 300 GB.
 
 ## Expected spend
 
-Reserve up to eight hours for initial validation and both arms. At $1.19 to $2.00 per hour, the compute ceiling is about $9.52 to $16.00. Stop after the first arm if the direction validation fails. Do not add account funds automatically.
+The approved direction study and reversible evaluation are estimated at 5 to 10 hours, or about $7.00 to $14.50 at the latest observed prices. The exact hard limit must be confirmed before rental. Stop if direction validation fails. Do not add account funds automatically.
 
 ## Before rental
 
@@ -78,16 +80,16 @@ PYTHONPATH=src python3 scripts/capture_activations.py \
 6. Download the small capture artifacts locally before continuing.
 7. Analyze all 40 direction candidates: two data sources, five layers, and four estimators.
 8. Run reversible activation intervention on refusal and harmless prompts. Compare refusal change and KL. Then run the quick capability gate for the finalists.
-9. Create permanent Arm A only after a direction passes.
-10. Create Arm B from a fresh base-model load. Do not edit Arm A into Arm B.
-11. Serve each saved checkpoint with `infra/serve_transformers.sh`. Run the quick gate, then run final evaluations only for finalists.
-12. Copy checkpoints, manifests, hashes, and logs to persistent storage.
-13. Verify the copies. Destroy the Vast instance. Stopping an instance can continue storage charges.
-14. Close the rental record and compare its estimate with the Vast charge:
+9. Copy activations, directions, logits, responses, benchmark results, manifests, hashes, and logs to local persistent storage.
+10. Verify every remote-to-local hash.
+11. Destroy the Vast instance. Stopping an instance can continue storage charges.
+12. Close the rental record and compare its estimate with the Vast charge:
 
 ```bash
 python3 scripts/record_rental.py --phase end --record runs/gpu/rental.json
 ```
+
+Do not create Arm A or Arm B in this approved run. Permanent editing requires a later user decision after the reversible result report.
 
 ## Abort conditions
 

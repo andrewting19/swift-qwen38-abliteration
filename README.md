@@ -17,7 +17,7 @@ No GPU has been rented. No full model weights have been downloaded. The local pr
 - The GPU runner has an explicit acknowledgement switch. It does not run by default.
 - The exact Orca massive-activation mask is not implemented because its rule and threshold are not public.
 
-Read [docs/PRE_GPU_STATUS.md](docs/PRE_GPU_STATUS.md) and [infra/vast/RUNBOOK.md](infra/vast/RUNBOOK.md) before any GPU rental.
+Read [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md) first. It is the source of truth across sessions. Then read [docs/PRE_GPU_STATUS.md](docs/PRE_GPU_STATUS.md) and [infra/vast/RUNBOOK.md](infra/vast/RUNBOOK.md) before any GPU rental.
 
 ## Local checks
 

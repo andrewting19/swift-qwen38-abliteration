@@ -1,5 +1,7 @@
 # Execution Plan
 
+The authoritative plan is `docs/PROJECT_PLAN.md`. This short file only shows the phase status.
+
 ## Phase 1: Local preparation — complete
 
 - Freeze model and dataset revisions.
@@ -17,7 +19,7 @@
 - Add a five-layer direction scan and reversible activation intervention.
 - Validate the pinned runtime, processor, and model class without model weights.
 
-## Phase 3: GPU validation — not started
+## Phase 3A: Direction study and reversible evaluation — approved, not started
 
 - Rent one suitable GPU.
 - Install the pinned environment.
@@ -25,14 +27,19 @@
 - Run live architecture checks.
 - Prepare the fixed prompt files.
 - Capture activations at layers 24, 32, 38, 44, and 52 in the same forward passes.
-- Calculate and save the refusal direction.
+- Calculate and save all 40 direction candidates.
 - Run causal activation intervention before permanent editing.
-- Produce Arm A and, if approved, Arm B.
-- Run refusal and capability evaluations.
+- Run validation refusal and quick capability evaluations.
 - Save hashes, logs, environment data, and costs.
 - Stop and destroy the rented instance.
 
-## Phase 4: Artifact selection — not started
+## Phase 3B: Permanent edit — not approved
+
+- Review the reversible results with the user.
+- Produce Arm A or Arm B only after approval.
+- Start every permanent arm from the unchanged base.
+
+## Phase 4: Final artifact selection — not started
 
 - Compare all results with the unchanged base.
 - Select an arm only if refusal falls and capability remains within the agreed limits.

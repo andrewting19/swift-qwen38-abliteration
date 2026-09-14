@@ -1,0 +1,241 @@
+# Canonical Project Plan
+
+Last updated: 2026-09-14
+
+This file is the source of truth for the project goal, current authority, execution order, decision gates, and restart procedure. Read this file first after a context reset or a new session.
+
+## Goal
+
+Measure and remove a refusal direction from the pinned `ukisai/Swift-Qwen3.8-27b` BF16 checkpoint. Treat this as a controlled educational experiment. Determine whether refusal decreases without unacceptable damage to ordinary behavior, general capability, or cybersecurity capability.
+
+The direction-quality analysis and the final evaluation report are primary outputs. A modified checkpoint is not a success by itself.
+
+## Current authority and limits
+
+- The user approved work through result review: rental setup, activation capture, direction analysis, reversible tests, quick capability evaluation, artifact preservation, offline scoring, and the report.
+- Do not create a permanent edited checkpoint until the user reviews the reversible results.
+- Do not quantize, publish, or upload a model.
+- Use one rented GPU at a time.
+- Do not add Vast.ai credit automatically.
+- The user reports adding another $10 of Vast credit. The final total-spend limit is not confirmed.
+- Do not put raw harmful prompts or harmful generations in Git or in the chat.
+
+## Experiment design
+
+### Prompt groups
+
+Use two independent contrast sources:
+
+1. Standard: AdvBench harmful prompts against Alpaca harmless prompts.
+2. Matched: semantic-matched harmful and harmless prompt pairs.
+
+For each source, use three disjoint roles:
+
+- Direction measurement: 32 harmful and 32 harmless prompts.
+- Candidate validation: 64 harmful and 64 harmless prompts.
+- Final test: 64 harmful and 64 harmless prompts.
+
+The current repository has the direction and one 64-item holdout for each source. Before rental, add the separate final-test split. Candidate selection must not use the final test.
+
+### Direction candidates
+
+Capture the last-prompt-token residual state at layers 24, 32, 38, 44, and 52 in the same forward passes.
+
+For each layer and prompt source, calculate four estimators:
+
+- Plain difference of means.
+- Winsorized at 0.990.
+- Winsorized at 0.995.
+- Winsorized at 0.999.
+
+This produces 40 candidates.
+
+Rank candidates with bootstrap cosine stability, validation-set standardized separation, cross-source cosine agreement, and outlier sensitivity. Cluster separation is not sufficient. A candidate must also pass a causal reversible intervention.
+
+### Reversible causal screen
+
+For a small shortlist, remove the candidate direction from the residual state after every target layer. Compare the unchanged model and each candidate on validation prompts.
+
+Measure:
+
+- Harmful refusal rate.
+- Harmless over-refusal rate.
+- Last-prompt-token KL divergence on harmless prompts.
+- Coherence.
+- Severe repetition and invalid output.
+
+The activation intervention is stronger than the planned weight edit. It tests whether the direction is causal. It does not predict the exact permanent-checkpoint result.
+
+### Quick capability gate
+
+Run the unchanged base and the best reversible candidate on:
+
+- MMLU-Pro, 500 fixed items.
+- GSM8K chain-of-thought, 256 fixed items.
+- IFEval, 200 fixed items.
+- WMDP-Cyber, 256 fixed items.
+- CyberMetric-80.
+
+Before rental, complete and locally validate a serving path that keeps reversible activation hooks active while these benchmark clients run.
+
+### Provisional pass limits
+
+- Remove at least 90% of the base refusals on both harmful validation sets.
+- Add no more than 5 percentage points of refusal on harmless prompts.
+- Keep mean harmless last-token KL at or below 0.10 nats.
+- Do not accept a general or cyber score loss above 2 absolute percentage points unless the confidence interval includes zero.
+- Do not accept a coherence-dimension mean loss above 0.25 on the 1-to-5 scale.
+- Reject severe repetition or invalid-output regressions.
+
+Do not use the final test until one candidate and its settings are frozen.
+
+## Execution order
+
+### Stage 0: Finish local controls
+
+1. Add separate validation and final-test prompt splits without printing harmful text.
+2. Add the reversible benchmark serving path.
+3. Confirm the fixed external judge model and API access.
+4. Run all unit tests, command checks, prompt hashes, and package checks.
+5. Run a live Vast offer search.
+6. Confirm the user's hard total-spend limit.
+
+### Stage 1: Rent and verify
+
+1. Rent one verified GPU with at least 75 GiB VRAM and 300 GB disk.
+2. Record the offer ID, instance ID, displayed total hourly price, and start time.
+3. Check CUDA, BF16, GPU memory, host RAM, disk, and network.
+4. Destroy the instance immediately if a hard check fails.
+
+### Stage 2: Reproduce the environment
+
+1. Clone the private repository at the recorded commit.
+2. Install the pinned dependencies.
+3. Recreate prompt and benchmark files.
+4. Verify every source and generated-file hash.
+5. Record the container image, `nvidia-smi`, `pip freeze`, disk state, and Git state.
+
+### Stage 3: Download and validate the base
+
+1. Download the pinned 55.6 GB BF16 checkpoint.
+2. Load it without permanent edits.
+3. Validate the live text-layer modules and tensor shapes.
+4. Stop on any mismatch.
+
+### Stage 4: Capture and analyze directions
+
+1. Capture all five layers for the direction and validation prompts. Leave the final-test prompts untouched during selection.
+2. Save activations and base harmless logits.
+3. Calculate all 40 candidates.
+4. Write the complete direction-quality report.
+5. Copy and hash these artifacts on the local machine before continuing.
+
+### Stage 5: Reversible behavior screen
+
+1. Select a small candidate shortlist from direction and validation statistics.
+2. Generate fixed validation responses for the base and shortlisted candidates.
+3. Save harmless logits for KL.
+4. Run the fixed refusal and coherence judge on the validation outputs.
+5. Calculate validation refusal, over-refusal, KL, and coherence results.
+6. Freeze one candidate and its settings.
+7. Copy and hash all outputs locally.
+
+### Stage 6: Quick capability gate
+
+1. Run the fixed quick benchmarks on the base once.
+2. Run them on the best reversible candidate.
+3. If the candidate passes, generate the base and candidate outputs on the untouched final-test prompts.
+4. Save prompt-level and aggregate results.
+5. Copy and hash the results locally.
+
+### Stage 7: End paid compute
+
+1. Confirm that every required remote artifact exists locally.
+2. Compare remote and local SHA-256 hashes.
+3. Record the stop time and estimated rental cost.
+4. Destroy the Vast instance. Do not leave a stopped instance with storage charges.
+
+### Stage 8: Offline scoring and report
+
+1. Use the fixed external LLM judge for refusal and coherence labels.
+2. Manually audit 20 fixed items per arm and every low-confidence judgment.
+3. Calculate refusal, over-refusal, KL, coherence, capability, uncertainty, and cost summaries.
+4. Write a direction-quality report and a final evaluation report.
+
+### Stage 9: User review
+
+Show the user the selected direction layer, data source, estimator, stability, separation, causal effect, KL, capability changes, uncertainty, failures, artifact hashes, and total cost. Then decide whether to create permanent Arm A or Arm B in a later paid run.
+
+## Time and cost estimate
+
+At about $1.40 to $1.45 per rental hour:
+
+| Work | Hours | Cost |
+|---|---:|---:|
+| Setup, download, and validation | 0.6–1.3 | $0.85–$1.89 |
+| Activation capture and direction analysis | 0.35–0.85 | $0.49–$1.23 |
+| Reversible tests for two or three finalists | 1.5–3.0 | $2.10–$4.35 |
+| Quick capability gate | 2.5–5.0 | $3.50–$7.25 |
+| Artifact verification and transfer | 0.1–0.3 | $0.14–$0.44 |
+| Total | 5.0–10.0 | $7.00–$14.50 |
+
+These are estimates. Generation length and server throughput are the main uncertainties. Use a cost watcher and stop before the agreed limit.
+
+## Artifact preservation contract
+
+Use one timestamped run directory. Record the Git commit and configuration in every manifest.
+
+Preserve locally after each paid stage:
+
+- Rental and hardware record.
+- Package lock and `pip freeze`.
+- Prompt and benchmark manifests and hashes.
+- Activation tensors.
+- Base logits.
+- All 40 direction vectors.
+- Direction-quality metrics and shortlist decision.
+- Base and reversible response files.
+- Judge inputs and outputs.
+- Benchmark prompt-level and aggregate results.
+- Command log, errors, timings, and cost record.
+
+Raw prompts, raw harmful generations, checkpoints, activations, and large benchmark outputs remain outside Git. Commit safe configuration files, hashes, commands, summaries, and reports to the private repository. Verify remote-to-local copies before destroying the instance.
+
+The pinned base checkpoint does not need a local backup. It can be downloaded again by repository ID and revision. The activation capture must be preserved because repeating it costs GPU time.
+
+## Abort conditions
+
+Stop paid work if any of these conditions occurs:
+
+- Hardware, architecture, module, or tensor mismatch.
+- Less than 250 GiB free disk after setup.
+- Non-finite activations, directions, logits, KL, or weights.
+- Bootstrap median cosine below 0.90 for all plausible candidates.
+- Reversible intervention fails to remove at least 90% of base refusals.
+- Mean harmless KL exceeds 0.10 nats for all plausible candidates.
+- Quick capability loss exceeds the fixed limit.
+- The rental reaches the agreed cost limit.
+
+Preserve completed artifacts before stopping when it is safe to do so.
+
+## Restart procedure
+
+After a context reset or interrupted rental:
+
+1. Read this file.
+2. Run `git status --short` and `git log -1 --oneline`.
+3. Read the latest safe run manifest and cost record.
+4. Verify local artifact hashes.
+5. Identify the first incomplete stage. Do not repeat a completed stage with verified artifacts.
+6. Run `scripts/pre_gpu_readiness.py` before any new rental.
+7. Search Vast offers again because prices and availability change.
+8. Confirm the remaining cost limit.
+
+## Supporting documents
+
+- Dataset details: `docs/DATASET_METHODS.md`
+- Prompt metadata: `docs/PROMPT_SET_AUDIT.md`
+- Direction estimators: `docs/DIRECTION_ESTIMATORS.md`
+- Evaluation protocol: `docs/EVAL_PROTOCOL.md`
+- Vast operation: `infra/vast/RUNBOOK.md`
+- Frozen sources: `docs/SOURCES.md`

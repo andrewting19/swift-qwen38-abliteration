@@ -1,5 +1,7 @@
 # Pre-GPU Status
 
+The authoritative project state and restart instructions are in `docs/PROJECT_PLAN.md`.
+
 ## Completed
 
 1. Research public dataset recipes without printing harmful prompt text.
@@ -21,8 +23,15 @@
 - Generated prompt and benchmark files match their pinned SHA-256 hashes.
 - Unit tests cover direction math, winsorization, bootstrap stability, layer intervention, weight projection, KL, and judge parsing.
 
+## Required before the first paid operation
+
+- Add a separate final-test split. Do not select candidates on the final test.
+- Complete the reversible benchmark serving path.
+- Confirm the fixed judge model and API access.
+- Confirm the hard total-spend limit.
+
 ## First paid operation
 
 The next step is to rent one GPU, download the 55.6 GB BF16 checkpoint, and run the live architecture and activation capture. No local test can prove the full-model runtime module layout or measure the actual direction.
 
-Do not create a rental until the user confirms the current Vast offer and total hourly price.
+Do not create a rental until the remaining local controls pass and the user confirms the current Vast offer and hard total-spend limit.
