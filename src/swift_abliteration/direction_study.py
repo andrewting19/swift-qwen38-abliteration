@@ -57,6 +57,75 @@ def cosine_similarity(left: np.ndarray, right: np.ndarray) -> float:
     return float((left @ right) / denominator)
 
 
+def normalized_average(directions: list[np.ndarray]) -> np.ndarray:
+    """Return the unit-normalized arithmetic mean of unit directions."""
+    if not directions:
+        raise ValueError("At least one direction is required.")
+    values = [np.asarray(direction, dtype=np.float32) for direction in directions]
+    if any(value.ndim != 1 for value in values):
+        raise ValueError("Directions must be vectors.")
+    if any(value.shape != values[0].shape for value in values[1:]):
+        raise ValueError("Directions must have matching shapes.")
+    unit_values = []
+    for value in values:
+        norm = np.linalg.norm(value)
+        if not np.isfinite(norm) or norm <= 0:
+            raise ValueError("Directions must be finite and nonzero.")
+        unit_values.append(value / norm)
+    mean = np.mean(unit_values, axis=0, dtype=np.float32)
+    norm = np.linalg.norm(mean)
+    if not np.isfinite(norm) or norm <= 0:
+        raise ValueError("The direction average is zero or invalid.")
+    return mean / norm
+
+
+def bootstrap_consensus_stability(
+    sources: list[tuple[np.ndarray, np.ndarray]],
+    reference: np.ndarray,
+    samples: int = 500,
+    seed: int = 3819,
+    winsor_quantile: float | None = None,
+) -> np.ndarray:
+    """Bootstrap each source independently, then rebuild the consensus."""
+    if not sources:
+        raise ValueError("At least one activation source is required.")
+    if samples <= 0:
+        raise ValueError("Bootstrap sample count must be positive.")
+    arrays = []
+    hidden_size = None
+    for harmful, harmless in sources:
+        harmful = np.asarray(harmful, dtype=np.float32)
+        harmless = np.asarray(harmless, dtype=np.float32)
+        if harmful.ndim != 2 or harmless.ndim != 2:
+            raise ValueError("Activation groups must be matrices.")
+        if harmful.shape[1] != harmless.shape[1]:
+            raise ValueError("Harmful and harmless hidden sizes must match.")
+        if hidden_size is None:
+            hidden_size = harmful.shape[1]
+        elif harmful.shape[1] != hidden_size:
+            raise ValueError("All source hidden sizes must match.")
+        arrays.append((harmful, harmless))
+    generator = np.random.default_rng(seed)
+    results = np.empty(samples, dtype=np.float32)
+    for index in range(samples):
+        directions = []
+        for harmful, harmless in arrays:
+            h_indices = generator.integers(0, len(harmful), size=len(harmful))
+            s_indices = generator.integers(0, len(harmless), size=len(harmless))
+            if winsor_quantile is None:
+                candidate = refusal_direction(
+                    harmful[h_indices], harmless[s_indices]
+                )
+            else:
+                candidate, _, _ = winsorized_direction(
+                    harmful[h_indices], harmless[s_indices], winsor_quantile
+                )
+            directions.append(candidate)
+        consensus = normalized_average(directions)
+        results[index] = cosine_similarity(consensus, reference)
+    return results
+
+
 def bootstrap_cosine_stability(
     harmful: np.ndarray,
     harmless: np.ndarray,

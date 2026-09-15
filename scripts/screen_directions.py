@@ -119,6 +119,11 @@ def main() -> int:
     parser.add_argument("--system-prompt", default="You are a helpful assistant.")
     parser.add_argument("--max-new-tokens", type=int, default=256)
     parser.add_argument("--alpha", type=float, default=1.0)
+    parser.add_argument(
+        "--skip-base",
+        action="store_true",
+        help="Run only the requested reversible candidate arms.",
+    )
     parser.add_argument("--acknowledge", required=True)
     args = parser.parse_args()
     require_acknowledgement(args.acknowledge)
@@ -153,8 +158,9 @@ def main() -> int:
     model.eval()
     validate_live_model(model, cfg)
     intervention_layers = list(range(cfg.edit.first_layer, cfg.edit.last_layer + 1))
-    arms = {
-        "base": run_arm(
+    arms = {}
+    if not args.skip_base:
+        arms["base"] = run_arm(
             model,
             processor,
             prompt_groups,
@@ -162,7 +168,6 @@ def main() -> int:
             args.max_new_tokens,
             args.system_prompt,
         )
-    }
     for key in args.direction_key:
         measured_layer = direction_layer(key)
         with activation_ablation_hooks(
@@ -188,6 +193,7 @@ def main() -> int:
             "prompt_sources": prompt_sources,
             "system_prompt": args.system_prompt,
             "max_new_tokens": args.max_new_tokens,
+            "base_arm_included": not args.skip_base,
             "intervention_layers": intervention_layers,
             "arms": arms,
             "system": system_record(),
