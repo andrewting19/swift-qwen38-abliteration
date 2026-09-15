@@ -1,0 +1,51 @@
+[study]
+anchor_layers = [24, 32, 38, 44, 52]
+estimator = "winsor_995"
+
+[[plans]]
+name = "layerwise_consensus_anchor5"
+source = "consensus"
+target_layers = [24, 32, 38, 44, 52]
+alpha = 1.0
+
+[[plans]]
+name = "layerwise_standard_anchor5"
+source = "standard"
+target_layers = [24, 32, 38, 44, 52]
+alpha = 1.0
+
+[[plans]]
+name = "layerwise_consensus_radius2"
+source = "consensus"
+target_layers = [22, 23, 24, 25, 26, 30, 31, 32, 33, 34, 36, 37, 38, 39, 40, 42, 43, 44, 45, 46, 50, 51, 52, 53, 54]
+alpha = 1.0
+
+[[plans]]
+name = "layerwise_standard_radius2"
+source = "standard"
+target_layers = [22, 23, 24, 25, 26, 30, 31, 32, 33, 34, 36, 37, 38, 39, 40, 42, 43, 44, 45, 46, 50, 51, 52, 53, 54]
+alpha = 1.0
+
+[[plans]]
+name = "layerwise_consensus_late32_56"
+source = "consensus"
+target_layers = [32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56]
+alpha = 1.0
+
+[[plans]]
+name = "layerwise_standard_late32_56"
+source = "standard"
+target_layers = [32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56]
+alpha = 1.0
+
+[[plans]]
+name = "layerwise_consensus_mid20_56"
+source = "consensus"
+target_layers = [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56]
+alpha = 1.0
+
+[[plans]]
+name = "layerwise_standard_mid20_56"
+source = "standard"
+target_layers = [20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56]
+alpha = 1.0

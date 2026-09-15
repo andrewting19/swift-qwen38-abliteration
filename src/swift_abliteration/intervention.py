@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any
@@ -178,6 +178,115 @@ def weight_equivalent_ablation_hooks(
             "mtp_exclusion_reason": None
             if not cfg.edit.include_mtp or generation_uses_mtp
             else "The active Transformers generation path does not execute MTP.",
+            "alpha": value,
+        }
+    finally:
+        for handle in handles:
+            handle.remove()
+
+
+@contextmanager
+def layerwise_weight_equivalent_ablation_hooks(
+    model: Any,
+    cfg: ExperimentConfig,
+    directions_by_layer: Mapping[int, Any],
+    alpha: float = 1.0,
+    *,
+    embedding_direction: Any | None = None,
+) -> Iterator[dict[str, Any]]:
+    """Project each selected layer's writers along its assigned direction."""
+    value = float(alpha)
+    if not 0.0 <= value <= 1.0:
+        raise ValueError("alpha must be between 0 and 1")
+    backbone = text_backbone(model)
+    assignments = {
+        int(index): direction for index, direction in directions_by_layer.items()
+    }
+    if not assignments:
+        raise ValueError("At least one layer direction is required.")
+    invalid = [
+        index
+        for index in assignments
+        if not cfg.edit.first_layer <= index <= cfg.edit.last_layer
+        or not 0 <= index < len(backbone.layers)
+    ]
+    if invalid:
+        raise ValueError(f"Layerwise intervention layers are outside the edit: {invalid}")
+
+    handles = []
+    module_names: list[str] = []
+    bias_modules: list[str] = []
+
+    def register_linear(name: str, module: Any, direction: Any) -> None:
+        hidden_size = int(direction.numel())
+        if module.weight.ndim != 2 or module.weight.shape[0] != hidden_size:
+            raise ValueError(f"Writer shape does not match direction: {name}")
+        bias = getattr(module, "bias", None)
+        if bias is not None:
+            bias_modules.append(name)
+        handles.append(
+            module.register_forward_hook(
+                lambda _module,
+                _inputs,
+                output,
+                *,
+                _direction=direction,
+                _bias=bias: _project_linear_output(
+                    output, _direction, value, _bias
+                )
+            )
+        )
+        module_names.append(name)
+
+    try:
+        if embedding_direction is not None:
+            hidden_size = int(embedding_direction.numel())
+            if (
+                backbone.embed_tokens.weight.ndim != 2
+                or backbone.embed_tokens.weight.shape[1] != hidden_size
+            ):
+                raise ValueError("Embedding shape does not match its direction.")
+            handles.append(
+                backbone.embed_tokens.register_forward_hook(
+                    lambda _module,
+                    _inputs,
+                    output,
+                    *,
+                    _direction=embedding_direction: project_activation(
+                        output, _direction, value
+                    )
+                )
+            )
+            module_names.append("model.language_model.embed_tokens")
+
+        for index, direction in sorted(assignments.items()):
+            layer = backbone.layers[index]
+            if cfg.edit.include_attention_output:
+                if hasattr(layer, "linear_attn"):
+                    module = layer.linear_attn.out_proj
+                    label = "linear_attn.out_proj"
+                else:
+                    module = layer.self_attn.o_proj
+                    label = "self_attn.o_proj"
+                register_linear(
+                    f"model.language_model.layers.{index}.{label}",
+                    module,
+                    direction,
+                )
+            if cfg.edit.include_mlp_output:
+                register_linear(
+                    f"model.language_model.layers.{index}.mlp.down_proj",
+                    layer.mlp.down_proj,
+                    direction,
+                )
+        yield {
+            "type": "layerwise_weight_equivalent_module_output_projection",
+            "module_count": len(module_names),
+            "modules": module_names,
+            "bias_modules": bias_modules,
+            "target_layers": sorted(assignments),
+            "embedding_included": embedding_direction is not None,
+            "mtp_included": False,
             "alpha": value,
         }
     finally:

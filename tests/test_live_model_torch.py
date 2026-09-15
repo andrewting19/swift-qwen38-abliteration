@@ -142,6 +142,65 @@ class LiveModelTests(unittest.TestCase):
         self.assertEqual(float(during[0, 0, 0]), 0.0)
         self.assertTrue(torch.equal(before, after))
 
+    def test_layerwise_weight_hooks_use_distinct_directions(self):
+        from swift_abliteration.intervention import (
+            layerwise_weight_equivalent_ablation_hooks,
+        )
+
+        class LinearAttention(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.out_proj = torch.nn.Linear(2, 2, bias=False)
+
+        class MLP(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.down_proj = torch.nn.Linear(2, 2, bias=False)
+
+        class Layer(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.linear_attn = LinearAttention()
+                self.mlp = MLP()
+
+        class Backbone(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.embed_tokens = torch.nn.Embedding(4, 2)
+                self.layers = torch.nn.ModuleList([Layer(), Layer()])
+
+        class Root(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.model = torch.nn.Module()
+                self.model.language_model = Backbone()
+
+        cfg = ExperimentConfig(
+            name="layerwise",
+            seed=1,
+            model=ModelSpec("fake", "fake", "fake", "fake", 2, 2, 4, 2, 2, 2, 0),
+            direction=DirectionSpec(0, 1, "plain", 2, 2, True, "disabled"),
+            edit=EditSpec(1.0, 0, 1, True, True, False, False, "float32", "bfloat16", True),
+        )
+        model = Root()
+        for layer in model.model.language_model.layers:
+            layer.linear_attn.out_proj.weight.data.copy_(torch.eye(2))
+            layer.mlp.down_proj.weight.data.copy_(torch.eye(2))
+        value = torch.tensor([[[3.0, 4.0]]])
+        directions = {
+            0: torch.tensor([1.0, 0.0]),
+            1: torch.tensor([0.0, 1.0]),
+        }
+        with layerwise_weight_equivalent_ablation_hooks(
+            model, cfg, directions
+        ) as record:
+            first = model.model.language_model.layers[0].linear_attn.out_proj(value)
+            second = model.model.language_model.layers[1].linear_attn.out_proj(value)
+        torch.testing.assert_close(first, torch.tensor([[[0.0, 4.0]]]))
+        torch.testing.assert_close(second, torch.tensor([[[3.0, 0.0]]]))
+        self.assertEqual(record["target_layers"], [0, 1])
+        self.assertEqual(record["module_count"], 4)
+
     def test_activation_intervention_can_project_every_target_layer(self):
         from swift_abliteration.intervention import activation_ablation_hooks
 
