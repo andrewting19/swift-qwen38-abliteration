@@ -26,6 +26,7 @@
     .direction { border-top:1px solid var(--line); padding-top:13px; margin-top:15px; } .direction:first-of-type { border-top:0; padding-top:0; margin-top:0; } .direction-title { display:flex; justify-content:space-between; gap:10px; margin-bottom:8px; } .direction-title strong { font-size:13px; } .pill { border-radius:999px; background:#203a44; color:var(--cyan); padding:3px 8px; font-size:11px; }
     .events { display:flex; flex-direction:column; gap:11px; } .event { display:grid; grid-template-columns:10px 1fr; gap:10px; } .event-dot { width:8px; height:8px; margin-top:5px; border-radius:50%; background:var(--cyan); box-shadow:0 0 0 3px #1d4550; } .event time { color:var(--muted); font-size:11px; } .event p { margin-top:2px; font-size:12px; }
     .artifact { display:grid; grid-template-columns:1fr auto; gap:4px 10px; border-top:1px solid var(--line); padding:11px 0; } .artifact:first-of-type { border-top:0; padding-top:0; } .artifact-name { font-weight:650; } .artifact-meta { color:var(--muted); font-size:11px; word-break:break-all; } .hash { color:var(--blue); font:11px ui-monospace,SFMono-Regular,Menlo,monospace; text-align:right; }
+    .results-card { margin-top:14px; overflow:hidden; } .table-wrap { overflow-x:auto; } table { width:100%; border-collapse:collapse; min-width:700px; } th,td { text-align:left; padding:11px 10px; border-top:1px solid var(--line); } th { border-top:0; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.08em; } td { font-size:12px; } td.metric-value { color:var(--cyan); font-weight:750; font-size:14px; } .result-state { border-radius:999px; padding:3px 8px; display:inline-block; font-size:10px; font-weight:700; background:#2a3551; color:var(--muted); } .result-state.complete { background:#173d2b; color:var(--green); } .result-state.preliminary { background:#433519; color:var(--amber); }
     .error { color:var(--amber); background:#44371b66; border:1px solid #80632e; border-radius:10px; padding:10px; font-size:12px; display:none; margin-top:14px; } .error.show { display:block; }
     .footer { color:var(--muted); text-align:center; margin-top:20px; font-size:11px; } code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color:#c7d4f4; }
     @media (max-width:900px) { .top { grid-template-columns:repeat(2,1fr); } .wide,.lower { grid-template-columns:1fr; } }
@@ -65,6 +66,7 @@
       <article class="card"><div class="section-head"><h2>Recent safe events</h2><span id="eventCount">—</span></div><div id="events" class="events"></div></article>
       <article class="card"><div class="section-head"><h2>Artifacts & hashes</h2><span>metadata only</span></div><div id="artifacts"></div></article>
     </section>
+    <section class="card results-card"><div class="section-head"><h2>Evaluation results</h2><span>aggregate labels and benchmark scores only</span></div><div class="table-wrap"><table><thead><tr><th>Arm</th><th>Group</th><th>Metric</th><th>Result</th><th>Count</th><th>State</th></tr></thead><tbody id="results"><tr><td colspan="6" class="hint">No scored results yet.</td></tr></tbody></table></div></section>
     <div class="footer">Polling <code id="statusUrlLabel">status.json</code> every <span id="pollSeconds">3</span>s · dashboard is local-only</div>
   </main>
   <script>
@@ -109,6 +111,8 @@
       const events = s.events || []; $('eventCount').textContent = `${events.length} recorded`;
       $('events').innerHTML = events.length ? events.slice().reverse().map(x => `<div class="event"><span class="event-dot"></span><div><time>${formatTime(x.at)} · ${safe(x.kind, 'event')}</time><p>${safe(x.message)}</p></div></div>`).join('') : '<p class="hint">No events yet.</p>';
       $('artifacts').innerHTML = (s.artifacts || []).map(x => `<div class="artifact"><div><div class="artifact-name">${safe(x.label)}</div><div class="artifact-meta">${safe(x.path)} · ${safe(x.size, 'size unknown')}</div></div><div class="hash">${safe(x.sha256, 'hash pending')}</div></div>`).join('');
+      const metrics = (s.evaluation || {}).metrics || [];
+      $('results').innerHTML = metrics.length ? metrics.map(x => `<tr><td>${safe(x.arm)}</td><td>${safe(x.group)}</td><td>${safe(x.metric)}</td><td class="metric-value">${safe(x.value)}</td><td>${safe(x.count)}</td><td><span class="result-state ${safe(x.state, 'pending')}">${safe(x.state, 'pending')}</span></td></tr>`).join('') : '<tr><td colspan="6" class="hint">No scored results yet.</td></tr>';
     }
     async function poll() { try { const response = await fetch(`${statusUrl}${statusUrl.includes('?') ? '&' : '?'}t=${Date.now()}`, {cache:'no-store'}); if (!response.ok) throw new Error(`HTTP ${response.status}`); render(await response.json()); } catch (e) { $('runBadge').textContent = 'STATUS UNAVAILABLE'; $('runBadge').className = 'badge warn'; $('error').textContent = `Status file unavailable: ${e.message}`; $('error').classList.add('show'); } }
     poll(); setInterval(poll, pollMs);
