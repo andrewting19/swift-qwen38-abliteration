@@ -82,7 +82,10 @@ def main() -> int:
             "minimum_opening_refusal_removal": result[
                 "minimum_opening_refusal_removal"
             ],
-            "mean_harmless_kl": result["comparison"]["harmless_kl"]["mean"],
+            "mean_harmless_kl": result["comparison"][
+                "harmless_kl_base_answered"
+            ]["mean"],
+            "mean_all_safe_kl": result["comparison"]["harmless_kl"]["mean"],
             "harmbench": judgments[key],
             "minimum_behavior_success_rate": minimum_behavior,
             "gates": gates,

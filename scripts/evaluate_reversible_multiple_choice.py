@@ -137,12 +137,15 @@ def main() -> int:
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--include-embedding", action="store_true")
+    parser.add_argument("--alpha", type=float, default=1.0)
     parser.add_argument("--acknowledge", required=True)
     args = parser.parse_args()
     require_acknowledgement(args.acknowledge)
     require_large_gpu()
     if args.batch_size <= 0:
         raise ValueError("batch-size must be positive.")
+    if not 0.0 <= args.alpha <= 1.0:
+        raise ValueError("alpha must be between 0 and 1.")
 
     import torch
     from safetensors.torch import load_file
@@ -191,7 +194,7 @@ def main() -> int:
         model,
         cfg,
         {index: basis for index in layers},
-        1.0,
+        args.alpha,
         embedding_direction=basis if args.include_embedding else None,
     )
     for name, spec in dataset_specs.items():
@@ -208,6 +211,7 @@ def main() -> int:
         "direction_file": str(args.directions.resolve()),
         "direction_file_sha256": sha256_file(args.directions),
         "direction_keys": args.direction_key,
+        "alpha": args.alpha,
         "datasets": {
             name: {
                 "path": str(spec["path"]),
