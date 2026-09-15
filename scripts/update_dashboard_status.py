@@ -78,6 +78,31 @@ def count_remote_jsonl(host: str | None, paths: list[str], identity: str | None,
     return counts
 
 
+def count_remote_jsonl_tree(
+    host: str | None,
+    root: str | None,
+    identity: str | None,
+    port: int | None = None,
+) -> dict[str, int]:
+    """Count every completed or partial JSONL artifact below one run root."""
+    if not host or not root:
+        return {}
+    command = (
+        "find "
+        + shlex.quote(root)
+        + " -type f -name '*.jsonl' -exec wc -l -- {} + 2>/dev/null; true"
+    )
+    code, stdout, _ = remote_command(host, command, identity, 25, port)
+    if code:
+        return {}
+    counts: dict[str, int] = {}
+    for line in stdout.splitlines():
+        match = re.match(r"^\s*(\d+)\s+(.+?)\s*$", line)
+        if match and match.group(2) != "total":
+            counts[match.group(2)] = int(match.group(1))
+    return counts
+
+
 def remote_runtime(host: str | None, identity: str | None, process_pattern: str | None, port: int | None = None) -> dict[str, Any]:
     if not host:
         return {}
@@ -155,7 +180,12 @@ def refresh(status_path: Path, config: dict[str, Any], args: argparse.Namespace)
     if isinstance(candidate_paths, str):
         candidate_paths = [candidate_paths]
     process_pattern = args.process_pattern or config.get("process_pattern")
-    counts = count_remote_jsonl(host, paths, identity, port)
+    tree_root = args.remote_jsonl_root or config.get("remote_jsonl_root")
+    counts = (
+        count_remote_jsonl_tree(host, tree_root, identity, port)
+        if tree_root
+        else count_remote_jsonl(host, paths, identity, port)
+    )
     runtime = remote_runtime(host, identity, process_pattern, port)
     expected = int(args.expected_outputs or config.get("expected_outputs", 768))
     # When a subset is configured, count only those output paths toward the gate.
@@ -249,6 +279,7 @@ def main() -> None:
     parser.add_argument("--identity")
     parser.add_argument("--ssh-port", type=int)
     parser.add_argument("--remote-jsonl", action="append", default=[])
+    parser.add_argument("--remote-jsonl-root")
     parser.add_argument("--candidate-jsonl", action="append", default=[])
     parser.add_argument("--process-pattern")
     parser.add_argument("--expected-outputs", type=int)
