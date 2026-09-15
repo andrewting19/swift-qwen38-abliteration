@@ -18,6 +18,9 @@ scope_configs=(
   configs/late_40_63_no_embedding.toml
   configs/late_48_63_no_embedding.toml
   configs/late_52_63_no_embedding.toml
+  configs/band_32_39_no_embedding.toml
+  configs/band_32_47_no_embedding.toml
+  configs/band_32_55_no_embedding.toml
   configs/huihui_band.toml
   configs/orca_style_mixer_only.toml
   configs/orca_style_mlp_only.toml
