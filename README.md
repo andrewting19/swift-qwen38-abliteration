@@ -1,23 +1,24 @@
 # Swift Qwen3.8 Abliteration Experiment
 
-This private research repository prepares a controlled refusal-direction experiment for `ukisai/Swift-Qwen3.8-27b`.
+This private research repository contains a controlled refusal-direction experiment for `ukisai/Swift-Qwen3.8-27b`.
 
-No GPU has been rented. No full model weights have been downloaded. The local preflight reads only the public model configuration and tensor index.
+The GPU experiment is complete. The best reversible six-direction edit passed the refusal-removal, matched-harmless, invalid-output, deterministic quality, and three measured capability gates. It failed the fixed mean-KL gate. No permanent checkpoint was written and the final-test split was not used.
 
 ## Current state
 
-- The base model and dataset revisions are pinned.
+- The base model, judge models, and dataset revisions are pinned.
 - The Swift architecture contract is checked before a model can be edited.
-- Two edit plans are defined.
+- Weight-equivalent module-output and in-memory weight edits are validated.
 - Independent and semantic-matched direction and holdout sets are pinned.
 - Five candidate direction layers and four estimators are defined.
 - Refusal, over-refusal, coherence, KL, general capability, cyber capability, and runtime checks are fixed. MTP acceptance is a later compatibility test.
 - The refusal-direction and projection math have CPU unit tests.
 - A data preparation script creates fixed, disjoint direction and evaluation splits.
-- The GPU runner has an explicit acknowledgement switch. It does not run by default.
+- The GPU runners have an explicit acknowledgement switch. They do not run by default.
 - The exact Orca massive-activation mask is not implemented because its rule and threshold are not public.
+- The recovery code includes iterative directions, source-specific branches, alpha screening, capability checks, and aggregate-only local judge reports.
 
-Read [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md) first. It is the source of truth across sessions. Then read [docs/PRE_GPU_STATUS.md](docs/PRE_GPU_STATUS.md) and [infra/vast/RUNBOOK.md](infra/vast/RUNBOOK.md) before any GPU rental.
+Read [docs/RECOVERY_POSTMORTEM.md](docs/RECOVERY_POSTMORTEM.md) for the result and causes. Read [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md) for the full plan and [infra/vast/RUNBOOK.md](infra/vast/RUNBOOK.md) before another GPU rental.
 
 ## Local checks
 
@@ -32,7 +33,7 @@ PYTHONPATH=src python3 -m swift_abliteration.cli preflight \
   --output runs/preflight-band.json
 ```
 
-## Later GPU environment
+## GPU environment
 
 Do this only after review:
 
@@ -44,7 +45,7 @@ python3 scripts/prepare_data.py --split-file data/splits.toml
 python3 -m pip install -e '.[gpu,eval]'
 ```
 
-The future full-model command requires `--acknowledge-large-model-run`. This switch is a safety boundary. It makes an accidental local run fail before weight download.
+Full-model commands require an explicit acknowledgement value. This switch makes an accidental local run fail before weight download.
 
 ## Scope
 

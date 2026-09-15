@@ -2,7 +2,11 @@
 
 Date: 2026-09-15
 
-## Decision
+## Recovery addendum
+
+This report records the first rental. A later recovery run found a six-direction candidate that passed the fixed refusal-removal gate on both harmful validation groups. It also passed the matched-harmless, invalid-output, deterministic quality, and three measured capability gates. It failed the fixed mean-KL gate at 0.639 nats. The current decision is still to not create a permanent checkpoint. See `docs/RECOVERY_POSTMORTEM.md` for the current result.
+
+## Initial-run decision
 
 Do not create a permanent checkpoint from the tested directions.
 

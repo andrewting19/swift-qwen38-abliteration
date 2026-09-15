@@ -130,7 +130,7 @@ def weight_equivalent_ablation_hooks(
     )
     if not targets:
         raise ValueError("The configured edit contains no runtime writer modules.")
-    hidden_size = int(direction.numel())
+    hidden_size = int(direction.shape[-1])
     handles = []
     bias_modules: list[str] = []
     try:
@@ -143,14 +143,15 @@ def weight_equivalent_ablation_hooks(
                     raise ValueError(
                         f"Embedding shape does not match direction: {target.name}"
                     )
-                hook = (
-                    lambda _module,
+                def hook(
+                    _module,
                     _inputs,
                     output,
                     *,
                     _direction=direction,
-                    _alpha=value: project_activation(output, _direction, _alpha)
-                )
+                    _alpha=value,
+                ):
+                    return project_activation(output, _direction, _alpha)
             else:
                 if (
                     target.module.weight.ndim != 2
@@ -162,17 +163,16 @@ def weight_equivalent_ablation_hooks(
                 bias = getattr(target.module, "bias", None)
                 if bias is not None:
                     bias_modules.append(target.name)
-                hook = (
-                    lambda _module,
+                def hook(
+                    _module,
                     _inputs,
                     output,
                     *,
                     _direction=direction,
                     _alpha=value,
-                    _bias=bias: _project_linear_output(
-                        output, _direction, _alpha, _bias
-                    )
-                )
+                    _bias=bias,
+                ):
+                    return _project_linear_output(output, _direction, _alpha, _bias)
             handles.append(target.module.register_forward_hook(hook))
         yield {
             "type": "weight_equivalent_module_output_projection",

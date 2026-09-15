@@ -29,6 +29,57 @@ def winsorized_direction(
     return refusal_direction(harmful_clipped, harmless_clipped), threshold, changed
 
 
+def ridge_fisher_direction(
+    harmful: np.ndarray,
+    harmless: np.ndarray,
+    shrinkage: float,
+    regularization_ratio: float = 1e-4,
+) -> tuple[np.ndarray, dict[str, float]]:
+    """Return a low-rank ridge Fisher direction without a dense covariance."""
+    harmful = np.asarray(harmful, dtype=np.float64)
+    harmless = np.asarray(harmless, dtype=np.float64)
+    if harmful.ndim != 2 or harmless.ndim != 2 or harmful.shape[1] != harmless.shape[1]:
+        raise ValueError("Activation groups must have matching matrix shapes.")
+    if not 0.0 <= shrinkage <= 1.0:
+        raise ValueError("Shrinkage must be between 0 and 1.")
+    if regularization_ratio <= 0.0:
+        raise ValueError("Regularization ratio must be positive.")
+    delta = harmful.mean(0) - harmless.mean(0)
+    harmful_centered = harmful - harmful.mean(0, keepdims=True)
+    harmless_centered = harmless - harmless.mean(0, keepdims=True)
+    rows = np.concatenate(
+        [
+            harmful_centered / np.sqrt(2.0 * max(len(harmful) - 1, 1)),
+            harmless_centered / np.sqrt(2.0 * max(len(harmless) - 1, 1)),
+        ],
+        axis=0,
+    )
+    variance_scale = float(np.sum(rows * rows) / rows.shape[1])
+    if not np.isfinite(variance_scale) or variance_scale <= 0.0:
+        raise ValueError("Activation covariance has zero or invalid scale.")
+    low_rank = np.sqrt(1.0 - shrinkage) * rows
+    ridge = variance_scale * (shrinkage + regularization_ratio)
+    gram = low_rank @ low_rank.T
+    solved = np.linalg.solve(
+        gram + ridge * np.eye(len(low_rank), dtype=np.float64),
+        low_rank @ delta,
+    )
+    value = (delta - low_rank.T @ solved) / ridge
+    norm = float(np.linalg.norm(value))
+    if not np.isfinite(norm) or norm <= 0.0:
+        raise ValueError("The Fisher direction has zero or invalid length.")
+    direction = (value / norm).astype(np.float32)
+    return direction, {
+        "shrinkage": float(shrinkage),
+        "regularization_ratio": float(regularization_ratio),
+        "variance_scale": variance_scale,
+        "mean_difference_norm": float(np.linalg.norm(delta)),
+        "projected_within_class_variance": float(
+            np.sum((rows @ direction.astype(np.float64)) ** 2)
+        ),
+    }
+
+
 def coordinate_masked_direction(
     harmful: np.ndarray,
     harmless: np.ndarray,
@@ -77,6 +128,28 @@ def normalized_average(directions: list[np.ndarray]) -> np.ndarray:
     if not np.isfinite(norm) or norm <= 0:
         raise ValueError("The direction average is zero or invalid.")
     return mean / norm
+
+
+def orthogonalize_direction(
+    candidate: np.ndarray, basis: list[np.ndarray]
+) -> tuple[np.ndarray, float]:
+    """Remove an orthonormal basis from one candidate and normalize it."""
+    value = np.asarray(candidate, dtype=np.float32).copy()
+    if value.ndim != 1:
+        raise ValueError("The candidate direction must be a vector.")
+    for direction in basis:
+        unit = np.asarray(direction, dtype=np.float32)
+        if unit.shape != value.shape:
+            raise ValueError("All basis directions must match the candidate shape.")
+        norm = float(np.linalg.norm(unit))
+        if not np.isfinite(norm) or norm <= 0.0:
+            raise ValueError("Basis directions must be finite and nonzero.")
+        unit = unit / norm
+        value -= float(value @ unit) * unit
+    residual_norm = float(np.linalg.norm(value))
+    if not np.isfinite(residual_norm) or residual_norm <= 1e-6:
+        raise ValueError("The candidate is contained in the existing basis.")
+    return (value / residual_norm).astype(np.float32), residual_norm
 
 
 def bootstrap_consensus_stability(

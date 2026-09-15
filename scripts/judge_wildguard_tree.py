@@ -61,6 +61,7 @@ def main() -> int:
     parser.add_argument("--responses-root", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
     parser.add_argument("--arm", action="append")
+    parser.add_argument("--group", action="append", choices=GROUPS)
     parser.add_argument("--model", default="Kotovskiy/Wildguard-Qwen3-4b")
     parser.add_argument(
         "--revision", default="e2a675e253900267ffc9e7c7aebe4c987ac9de0f"
@@ -83,10 +84,11 @@ def main() -> int:
             for path in args.responses_root.iterdir()
             if path.is_dir()
         )
+    groups = args.group or GROUPS
     files = [
         (arm, group, args.responses_root / arm / f"{group}.jsonl")
         for arm in arms
-        for group in GROUPS
+        for group in groups
     ]
     missing = [str(path) for _, _, path in files if not path.is_file()]
     if missing:

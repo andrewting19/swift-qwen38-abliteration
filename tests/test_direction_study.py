@@ -12,6 +12,8 @@ from swift_abliteration.direction_study import (
     coordinate_masked_direction,
     cosine_similarity,
     normalized_average,
+    orthogonalize_direction,
+    ridge_fisher_direction,
     standardized_separation,
     winsorized_direction,
 )
@@ -19,6 +21,46 @@ from swift_abliteration.math_core import refusal_direction
 
 
 class DirectionStudyTests(unittest.TestCase):
+    def test_orthogonalize_direction_removes_existing_basis(self) -> None:
+        candidate = np.array([1.0, 2.0, 2.0], dtype=np.float32)
+        basis = [np.array([1.0, 0.0, 0.0], dtype=np.float32)]
+
+        direction, residual_norm = orthogonalize_direction(candidate, basis)
+
+        self.assertAlmostEqual(residual_norm, np.sqrt(8.0))
+        self.assertAlmostEqual(float(direction @ basis[0]), 0.0)
+        self.assertAlmostEqual(float(np.linalg.norm(direction)), 1.0, places=6)
+
+    def test_ridge_fisher_matches_dense_solve(self) -> None:
+        harmful = np.array(
+            [[2.0, 1.0, 0.0], [3.0, -1.0, 1.0], [2.5, 0.5, -1.0]],
+            dtype=np.float32,
+        )
+        harmless = np.array(
+            [[0.0, 1.0, 0.0], [0.5, -1.0, 1.0], [-0.5, 0.5, -1.0]],
+            dtype=np.float32,
+        )
+        shrinkage = 0.2
+        regularization = 1e-4
+        observed, details = ridge_fisher_direction(
+            harmful, harmless, shrinkage, regularization
+        )
+        h_centered = harmful - harmful.mean(0)
+        b_centered = harmless - harmless.mean(0)
+        covariance = (
+            h_centered.T @ h_centered / (2 * (len(harmful) - 1))
+            + b_centered.T @ b_centered / (2 * (len(harmless) - 1))
+        )
+        scale = np.trace(covariance) / covariance.shape[0]
+        dense = np.linalg.solve(
+            (1 - shrinkage) * covariance
+            + scale * (shrinkage + regularization) * np.eye(3),
+            harmful.mean(0) - harmless.mean(0),
+        )
+        dense /= np.linalg.norm(dense)
+        np.testing.assert_allclose(observed, dense, atol=1e-5)
+        self.assertGreater(details["variance_scale"], 0)
+
     def test_normalized_average_bisects_unit_directions(self) -> None:
         result = normalized_average(
             [np.array([1.0, 0.0]), np.array([0.0, 1.0])]

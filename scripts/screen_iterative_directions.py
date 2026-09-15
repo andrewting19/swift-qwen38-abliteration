@@ -57,13 +57,25 @@ def main() -> int:
     )
     parser.add_argument("--config", default="configs/orca_style_full.toml")
     parser.add_argument("--directions", type=Path, required=True)
+    parser.add_argument(
+        "--primary-key",
+        action="append",
+        help="Use one or more supplied orthogonal directions as the initial basis.",
+    )
     parser.add_argument("--primary-layer", type=int, default=52)
     parser.add_argument("--max-rank", type=int, default=4)
     parser.add_argument("--winsor-quantile", type=float, default=0.995)
+    parser.add_argument(
+        "--direction-source",
+        choices=("consensus", "standard", "matched"),
+        default="consensus",
+        help="Choose the activation contrast used for each new residual direction.",
+    )
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--max-new-tokens", type=int, default=128)
     parser.add_argument("--batch-size", type=int, default=4)
     parser.add_argument("--group-limit", type=int, default=16)
+    parser.add_argument("--skip-initial-screen", action="store_true")
     parser.add_argument("--system-prompt", default="You are a helpful assistant.")
     parser.add_argument("--acknowledge", required=True)
     args = parser.parse_args()
@@ -84,16 +96,30 @@ def main() -> int:
         raise ValueError("The iterative screen requires the configured embedding edit.")
     args.output_dir.mkdir(parents=True, exist_ok=False)
     source_tensors = load_file(str(args.directions), device="cpu")
-    primary_keys = [
+    primary_keys = args.primary_key or [
         f"standard_layer_{args.primary_layer}_winsor_995",
         f"matched_layer_{args.primary_layer}_winsor_995",
     ]
     missing = [key for key in primary_keys if key not in source_tensors]
     if missing:
         raise KeyError(f"Missing primary directions: {missing}")
-    primary = normalized_average(
-        [source_tensors[key].numpy() for key in primary_keys]
-    ).astype(np.float32)
+    if args.primary_key:
+        basis = []
+        for key in primary_keys:
+            candidate = source_tensors[key].numpy().astype(np.float32)
+            candidate /= np.linalg.norm(candidate)
+            if basis:
+                candidate, _ = orthogonalize(candidate, basis)
+            basis.append(candidate)
+        primary = np.stack(basis)
+    else:
+        primary = normalized_average(
+            [source_tensors[key].numpy() for key in primary_keys]
+        ).astype(np.float32)
+        basis = [primary]
+    initial_rank = len(basis)
+    if args.max_rank <= initial_rank:
+        raise ValueError("max-rank must be greater than the initial basis rank.")
 
     evaluation_groups = {}
     evaluation_sources = {}
@@ -129,15 +155,22 @@ def main() -> int:
     validate_live_model(model, cfg)
     all_layers = list(range(cfg.edit.first_layer, cfg.edit.last_layer + 1))
 
-    basis = [primary]
-    saved_directions = {"iterative_direction_1": primary}
+    saved_directions = {
+        f"iterative_direction_{index}": direction
+        for index, direction in enumerate(basis, start=1)
+    }
     saved_activations = {}
     arms = {}
     direction_quality = {
-        "1": {
-            "source": "normalized standard-plus-matched winsor-995 consensus",
-            "primary_keys": primary_keys,
+        str(index): {
+            "source": (
+                "supplied initial direction"
+                if args.primary_key
+                else "normalized standard-plus-matched winsor-995 consensus"
+            ),
+            "primary_key": key,
         }
+        for index, key in enumerate(primary_keys, start=1)
     }
 
     edit_record = apply_layerwise_runtime_edit(
@@ -147,18 +180,20 @@ def main() -> int:
         1.0,
         embedding_direction=torch.from_numpy(primary),
     )
-    arms["iterative_rank1"] = run_arm(
-        model,
-        processor,
-        evaluation_groups,
-        args.output_dir / "iterative_rank1",
-        args.max_new_tokens,
-        args.system_prompt,
-        args.batch_size,
-    )
-    arms["iterative_rank1"]["intervention"] = edit_record
+    initial_arm = f"iterative_rank{initial_rank}"
+    if not args.skip_initial_screen:
+        arms[initial_arm] = run_arm(
+            model,
+            processor,
+            evaluation_groups,
+            args.output_dir / initial_arm,
+            args.max_new_tokens,
+            args.system_prompt,
+            args.batch_size,
+        )
+        arms[initial_arm]["intervention"] = edit_record
 
-    for rank in range(2, args.max_rank + 1):
+    for rank in range(initial_rank + 1, args.max_rank + 1):
         captured = {}
         for name, prompts in direction_prompts.items():
             values = capture_last_token_activations_multi(
@@ -182,13 +217,18 @@ def main() -> int:
             captured["matched_harmless"],
             args.winsor_quantile,
         )
-        consensus = normalized_average([standard, matched])
-        next_direction, residual_norm = orthogonalize(consensus, basis)
+        if args.direction_source == "standard":
+            candidate = standard
+        elif args.direction_source == "matched":
+            candidate = matched
+        else:
+            candidate = normalized_average([standard, matched])
+        next_direction, residual_norm = orthogonalize(candidate, basis)
         direction_quality[str(rank)] = {
-            "source": "edited-model standard-plus-matched winsor-995 consensus",
+            "source": f"edited-model {args.direction_source} winsor-995 direction",
             "standard_matched_cosine": cosine_similarity(standard, matched),
             "cosine_to_previous_basis": [
-                cosine_similarity(consensus, direction) for direction in basis
+                cosine_similarity(candidate, direction) for direction in basis
             ],
             "orthogonal_residual_norm": residual_norm,
             "standard_winsor_threshold": standard_threshold,
@@ -226,7 +266,9 @@ def main() -> int:
         "source_directions_sha256": sha256_file(args.directions),
         "primary_layer": args.primary_layer,
         "max_rank": args.max_rank,
+        "initial_screen_skipped": args.skip_initial_screen,
         "winsor_quantile": args.winsor_quantile,
+        "direction_source": args.direction_source,
         "direction_sources": direction_sources,
         "evaluation_sources": evaluation_sources,
         "direction_quality": direction_quality,
