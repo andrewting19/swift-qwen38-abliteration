@@ -23,3 +23,6 @@ credentials, prompts, generations, or raw model output in it. The updater uses
 `wc -l` over SSH, `nvidia-smi`, a process-presence check, and the Vast CLI's
 numeric `credit` field only. Writes use a same-directory temporary file and
 `os.replace`, so the browser never observes a partial JSON document.
+
+The optional ignored `overlay_file` adds safe aggregate results at each poll.
+This lets scoring update the page without changing the remote polling process.

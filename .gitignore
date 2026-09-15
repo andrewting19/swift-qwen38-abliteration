@@ -32,3 +32,4 @@ work/
 *.pem
 *token*
 .dashboard-runtime.json
+.dashboard-results.json

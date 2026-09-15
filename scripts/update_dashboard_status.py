@@ -137,6 +137,12 @@ def write_atomic(path: Path, value: dict[str, Any]) -> None:
 
 def refresh(status_path: Path, config: dict[str, Any], args: argparse.Namespace) -> None:
     snapshot = json.loads(status_path.read_text()) if status_path.exists() else {}
+    overlay_value = config.get("overlay_file")
+    if overlay_value:
+        overlay_path = Path(overlay_value)
+        if not overlay_path.is_absolute():
+            overlay_path = ROOT / overlay_path
+        snapshot = deep_merge(snapshot, load_config(overlay_path))
     host = args.remote_host or config.get("remote_host")
     identity = args.identity or config.get("identity_file")
     port = args.ssh_port or config.get("ssh_port")
