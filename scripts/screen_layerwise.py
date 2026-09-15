@@ -88,6 +88,11 @@ def resolve_plan(
             keys = [key]
             value = tensors[key]
             direction_keys[str(target)] = keys
+        elif source == "artifact":
+            key = str(plan["key_template"]).format(anchor=anchor)
+            keys = [key]
+            value = tensors[key]
+            direction_keys[str(target)] = keys
         else:
             raise ValueError(f"Unsupported direction source: {source}")
         directions[target] = value

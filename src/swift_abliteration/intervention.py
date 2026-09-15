@@ -17,12 +17,18 @@ class RuntimeWriter:
 
 
 def project_activation(tensor: Any, direction: Any, alpha: float = 1.0) -> Any:
-    """Remove alpha times the component along direction from the last axis."""
+    """Remove alpha times one direction or an orthonormal row subspace."""
     if not 0.0 <= alpha <= 1.0:
         raise ValueError("alpha must be between 0 and 1")
-    unit = direction.to(device=tensor.device, dtype=tensor.dtype)
-    unit = unit / unit.norm().clamp_min(1e-12)
-    return tensor - alpha * (tensor @ unit).unsqueeze(-1) * unit
+    value = direction.to(device=tensor.device, dtype=tensor.dtype)
+    if value.ndim == 1:
+        unit = value / value.norm().clamp_min(1e-12)
+        return tensor - alpha * (tensor @ unit).unsqueeze(-1) * unit
+    if value.ndim == 2:
+        if value.shape[0] == 0:
+            raise ValueError("A direction subspace must have at least one row.")
+        return tensor - alpha * ((tensor @ value.transpose(0, 1)) @ value)
+    raise ValueError("Direction must be a vector or an orthonormal row matrix.")
 
 
 def _replace_hidden(output: Any, direction: Any, alpha: float) -> Any:
@@ -218,7 +224,7 @@ def layerwise_weight_equivalent_ablation_hooks(
     bias_modules: list[str] = []
 
     def register_linear(name: str, module: Any, direction: Any) -> None:
-        hidden_size = int(direction.numel())
+        hidden_size = int(direction.shape[-1])
         if module.weight.ndim != 2 or module.weight.shape[0] != hidden_size:
             raise ValueError(f"Writer shape does not match direction: {name}")
         bias = getattr(module, "bias", None)
@@ -240,7 +246,7 @@ def layerwise_weight_equivalent_ablation_hooks(
 
     try:
         if embedding_direction is not None:
-            hidden_size = int(embedding_direction.numel())
+            hidden_size = int(embedding_direction.shape[-1])
             if (
                 backbone.embed_tokens.weight.ndim != 2
                 or backbone.embed_tokens.weight.shape[1] != hidden_size
@@ -285,6 +291,10 @@ def layerwise_weight_equivalent_ablation_hooks(
             "modules": module_names,
             "bias_modules": bias_modules,
             "target_layers": sorted(assignments),
+            "ranks_by_layer": {
+                str(index): 1 if direction.ndim == 1 else int(direction.shape[0])
+                for index, direction in sorted(assignments.items())
+            },
             "embedding_included": embedding_direction is not None,
             "mtp_included": False,
             "alpha": value,
