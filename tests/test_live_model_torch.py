@@ -20,6 +20,75 @@ from swift_abliteration.config import (
 
 @unittest.skipIf(torch is None, "torch is not installed")
 class LiveModelTests(unittest.TestCase):
+    def test_capability_direction_combiner_accepts_saved_rank2_basis(self):
+        import importlib.util
+
+        path = (
+            Path(__file__).resolve().parents[1]
+            / "scripts"
+            / "evaluate_reversible_multiple_choice.py"
+        )
+        spec = importlib.util.spec_from_file_location("reversible_mc", path)
+        module = importlib.util.module_from_spec(spec)
+        assert spec.loader is not None
+        spec.loader.exec_module(module)
+        basis = torch.tensor([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
+        combined = module.combine_direction_rows([basis])
+        torch.testing.assert_close(combined @ combined.T, torch.eye(2))
+
+    def test_batched_generation_returns_responses_and_first_logits(self):
+        from types import SimpleNamespace
+
+        from swift_abliteration.live_model import generate_responses_with_first_logits
+
+        class Tokenizer:
+            padding_side = "right"
+            pad_token_id = 0
+
+            def apply_chat_template(self, messages, **_kwargs):
+                return messages[-1]["content"]
+
+            def __call__(self, texts, **_kwargs):
+                width = max(len(text) for text in texts)
+                rows = [[0] * (width - len(text)) + [1] * len(text) for text in texts]
+                return {
+                    "input_ids": torch.tensor(rows),
+                    "attention_mask": torch.tensor(
+                        [[value != 0 for value in row] for row in rows]
+                    ),
+                }
+
+            def decode(self, token_ids, **_kwargs):
+                return " ".join(str(int(value)) for value in token_ids)
+
+        class Backbone(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.embed_tokens = torch.nn.Embedding(16, 2)
+                self.layers = torch.nn.ModuleList([])
+
+        class Root(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.model = torch.nn.Module()
+                self.model.language_model = Backbone()
+
+            def generate(self, input_ids, **_kwargs):
+                extra = torch.tensor([[7, 8]]).repeat(input_ids.shape[0], 1)
+                scores = (torch.arange(16).float().repeat(input_ids.shape[0], 1),)
+                return SimpleNamespace(
+                    sequences=torch.cat((input_ids, extra), dim=1), scores=scores
+                )
+
+        tokenizer = Tokenizer()
+        result = generate_responses_with_first_logits(
+            Root(), tokenizer, ["a", "bbb", "cc"], 2, batch_size=2
+        )
+        self.assertEqual(result["responses"], ["7 8", "7 8", "7 8"])
+        self.assertEqual(result["first_token_ids"], [7, 7, 7])
+        self.assertEqual(len(result["first_step_logits"]), 3)
+        self.assertEqual(tokenizer.padding_side, "right")
+
     def test_activation_addition_hook_is_temporary(self):
         from swift_abliteration.intervention import activation_addition_input_hook
 

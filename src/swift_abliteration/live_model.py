@@ -375,6 +375,75 @@ def capture_last_token_logits(
     return results
 
 
+def generate_responses_with_first_logits(
+    model: Any,
+    processor: Any,
+    prompts: list[str],
+    max_new_tokens: int,
+    system_prompt: str | None = None,
+    batch_size: int = 4,
+) -> dict[str, Any]:
+    """Generate deterministic responses and retain only first-step logits."""
+    torch = __import__("torch")
+    if max_new_tokens <= 0:
+        raise ValueError("max_new_tokens must be positive.")
+    if batch_size <= 0:
+        raise ValueError("batch_size must be positive.")
+    backbone = text_backbone(model)
+    tokenizer = getattr(processor, "tokenizer", processor)
+    pad_token_id = tokenizer.pad_token_id
+    if pad_token_id is None:
+        pad_token_id = tokenizer.eos_token_id
+    if pad_token_id is None:
+        raise RuntimeError("Tokenizer has neither a pad token nor an EOS token.")
+    responses: list[str] = []
+    first_step_logits: list[Any] = []
+    first_token_ids: list[int] = []
+    previous_padding_side = tokenizer.padding_side
+    tokenizer.padding_side = "left"
+    try:
+        for start in range(0, len(prompts), batch_size):
+            values = prompts[start : start + batch_size]
+            texts = [render_prompt(tokenizer, value, system_prompt) for value in values]
+            batch = tokenizer(texts, return_tensors="pt", padding=True)
+            device = backbone.embed_tokens.weight.device
+            batch = {
+                name: value.to(device)
+                for name, value in batch.items()
+                if hasattr(value, "to")
+            }
+            with torch.inference_mode():
+                generated = model.generate(
+                    **batch,
+                    do_sample=False,
+                    max_new_tokens=max_new_tokens,
+                    return_dict_in_generate=True,
+                    output_scores=True,
+                    use_cache=True,
+                    pad_token_id=pad_token_id,
+                )
+            if not generated.scores:
+                raise RuntimeError("Generation did not return first-step logits.")
+            input_width = int(batch["input_ids"].shape[1])
+            first_step_logits.extend(generated.scores[0].float().cpu().unbind(0))
+            first_token_ids.extend(
+                int(value) for value in generated.sequences[:, input_width].cpu()
+            )
+            for token_ids in generated.sequences[:, input_width:]:
+                responses.append(tokenizer.decode(token_ids, skip_special_tokens=True))
+    finally:
+        tokenizer.padding_side = previous_padding_side
+    if not (
+        len(responses) == len(first_step_logits) == len(first_token_ids) == len(prompts)
+    ):
+        raise RuntimeError("Generated response and logit counts do not match prompts.")
+    return {
+        "responses": responses,
+        "first_step_logits": first_step_logits,
+        "first_token_ids": first_token_ids,
+    }
+
+
 def capture_prompt_and_first_output_activations_multi(
     model: Any,
     processor: Any,

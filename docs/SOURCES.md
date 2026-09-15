@@ -18,5 +18,6 @@ The code uses the source commits below. The commit IDs protect the experiment fr
 - Broader method notes: [local method survey](../outputs/abliteration-model-method-survey.md)
 - Final local refusal judge: [WildGuard-Qwen3-4B](https://huggingface.co/Kotovskiy/Wildguard-Qwen3-4b)
 - Final local harmful-compliance cross-check: [HarmBench Llama-2 13B classifier](https://huggingface.co/cais/HarmBench-Llama-2-13b-cls)
+- Safe over-refusal evaluation: [XSTest repository](https://github.com/paul-rottger/xstest) at commit `d7bb5bd738c1fcbc36edd83d5e7d1b71a3e2d84d`
 
 The Orca article states that it uses massive-activation masking. It does not give a complete masking algorithm or threshold. This repository does not label its plain difference-of-means direction as an exact reproduction of that private detail.

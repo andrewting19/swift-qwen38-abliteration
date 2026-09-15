@@ -25,6 +25,26 @@ from swift_abliteration.live_model import (
 LABELS = "ABCDEFGHIJ"
 
 
+def combine_direction_rows(tensors):
+    import torch
+
+    rows = []
+    for tensor in tensors:
+        if tensor.ndim == 1:
+            rows.append(tensor.float())
+        elif tensor.ndim == 2:
+            rows.extend(tensor.float().unbind(0))
+        else:
+            raise ValueError("Each direction must be a vector or a row basis.")
+    if not rows:
+        raise ValueError("At least one direction row is required.")
+    matrix = torch.stack(rows)
+    q, r = torch.linalg.qr(matrix.transpose(0, 1), mode="reduced")
+    if int(torch.linalg.matrix_rank(r).item()) != len(rows):
+        raise ValueError("Direction rows are linearly dependent.")
+    return q.transpose(0, 1).contiguous()
+
+
 def normalize_item(item: dict) -> tuple[str, list[str], str, int]:
     if "choices" in item or "options" in item:
         choices = list(item.get("choices", item.get("options")))
@@ -60,7 +80,9 @@ def evaluate(model, tokenizer, items: list[dict], batch_size: int) -> dict:
                     f"{question}\n\n{options}\n\n"
                     f"Return only one letter: {valid_labels}."
                 )
-                prompts.append(render_prompt(tokenizer, user, "You are a helpful assistant."))
+                prompts.append(
+                    render_prompt(tokenizer, user, "You are a helpful assistant.")
+                )
             encoded = tokenizer(prompts, return_tensors="pt", padding=True)
             encoded = {name: value.to(device) for name, value in encoded.items()}
             with torch.inference_mode():
@@ -71,7 +93,9 @@ def evaluate(model, tokenizer, items: list[dict], batch_size: int) -> dict:
                     pad_token_id=tokenizer.pad_token_id,
                 )
             input_width = encoded["input_ids"].shape[1]
-            for row_index, (question, choices, target, item_id) in enumerate(normalized):
+            for row_index, (question, choices, target, item_id) in enumerate(
+                normalized
+            ):
                 del question, choices
                 decoded = tokenizer.decode(
                     generated[row_index, input_width:], skip_special_tokens=True
@@ -139,7 +163,7 @@ def main() -> int:
     missing = [key for key in args.direction_key if key not in directions]
     if missing:
         raise KeyError(f"Missing direction keys: {missing}")
-    basis = torch.stack([directions[key] for key in args.direction_key])
+    basis = combine_direction_rows([directions[key] for key in args.direction_key])
 
     args.output_dir.mkdir(parents=True, exist_ok=False)
     cfg = load_config(args.config)

@@ -27,9 +27,16 @@ eval = [
   "lm-eval[api]==0.4.13",
   "openai==3.13.0",
 ]
+test = [
+  "pytest==9.0.2",
+]
 
 [project.scripts]
 swift-abliterate = "swift_abliteration.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
