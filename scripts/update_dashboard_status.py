@@ -194,7 +194,9 @@ def refresh(status_path: Path, config: dict[str, Any], args: argparse.Namespace)
     for path, count in counts.items():
         arm = Path(path).parent.name
         arm_counts[arm] = arm_counts.get(arm, 0) + count
-    candidate_started = any(arm != "base" and count > 0 for arm, count in arm_counts.items())
+    candidate_started = any(
+        arm != "base" and count > 0 for arm, count in arm_counts.items()
+    )
     candidate_names = [item.get("name") for item in snapshot.get("direction_quality", {}).get("candidates", []) if item.get("name")]
     arm_order = ["base", *candidate_names]
     per_arm_expected = max(1, expected // max(len(arm_order), 1))
@@ -206,7 +208,9 @@ def refresh(status_path: Path, config: dict[str, Any], args: argparse.Namespace)
         count = arm_counts.get(name, 0)
         updated["state"] = "done" if count >= per_arm_expected else "running" if name == active_arm else "queued"
         candidate_states.append(updated)
-    if active_arm == "base":
+    if tree_root:
+        screen_status = f"generation artifacts · {observed}/{expected} selection records"
+    elif active_arm == "base":
         screen_status = f"base arm · {arm_counts.get('base', 0)}/{per_arm_expected}"
     elif active_arm:
         screen_status = f"{active_arm} · {arm_counts.get(active_arm, 0)}/{per_arm_expected}"
