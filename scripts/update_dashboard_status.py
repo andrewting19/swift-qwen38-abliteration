@@ -137,12 +137,13 @@ def write_atomic(path: Path, value: dict[str, Any]) -> None:
 
 def refresh(status_path: Path, config: dict[str, Any], args: argparse.Namespace) -> None:
     snapshot = json.loads(status_path.read_text()) if status_path.exists() else {}
+    overlay: dict[str, Any] = {}
     overlay_value = config.get("overlay_file")
     if overlay_value:
         overlay_path = Path(overlay_value)
         if not overlay_path.is_absolute():
             overlay_path = ROOT / overlay_path
-        snapshot = deep_merge(snapshot, load_config(overlay_path))
+        overlay = load_config(overlay_path)
     host = args.remote_host or config.get("remote_host")
     identity = args.identity or config.get("identity_file")
     port = args.ssh_port or config.get("ssh_port")
@@ -229,6 +230,9 @@ def refresh(status_path: Path, config: dict[str, Any], args: argparse.Namespace)
             ],
         }
     merged = deep_merge(snapshot, patch)
+    # The operator-written overlay is authoritative for experiment decisions and
+    # labels. Runtime polling still supplies counts, credit, and GPU telemetry.
+    merged = deep_merge(merged, overlay)
     # These maps are complete snapshots. Do not retain keys from an older poll.
     merged["runtime"]["jsonl_line_counts"] = counts
     merged["runtime"]["arm_output_counts"] = arm_counts
