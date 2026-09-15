@@ -1,0 +1,36 @@
+[study]
+anchor_layers = [24, 32, 38, 44, 52]
+estimator = "winsor_995"
+
+[[plans]]
+name = "global_consensus_layer52_embed52"
+source = "consensus"
+fixed_anchor = 52
+target_first = 0
+target_last = 63
+embedding_anchor = 52
+alpha = 1.0
+
+[[plans]]
+name = "layerwise_consensus_all_embed24"
+source = "consensus"
+target_first = 0
+target_last = 63
+embedding_anchor = 24
+alpha = 1.0
+
+[[plans]]
+name = "layerwise_consensus_all_embed38"
+source = "consensus"
+target_first = 0
+target_last = 63
+embedding_anchor = 38
+alpha = 1.0
+
+[[plans]]
+name = "layerwise_consensus_all_embed52"
+source = "consensus"
+target_first = 0
+target_last = 63
+embedding_anchor = 52
+alpha = 1.0

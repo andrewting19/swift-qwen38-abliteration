@@ -99,6 +99,33 @@ def resolve_plan(
     return directions, direction_keys
 
 
+def resolve_embedding_direction(
+    plan: dict,
+    anchors: list[int],
+    estimator: str,
+    tensors: dict,
+):
+    """Resolve an optional weight-equivalent embedding projection for a plan."""
+    if "embedding_anchor" not in plan:
+        return None, []
+    anchor = int(plan["embedding_anchor"])
+    if anchor not in anchors:
+        raise ValueError("Plan embedding_anchor must be one of the study anchors.")
+    embedding_plan = {
+        "source": plan.get("embedding_source", plan["source"]),
+        "target_layers": [anchor],
+        "fixed_anchor": anchor,
+    }
+    if "embedding_key_template" in plan:
+        embedding_plan["key_template"] = plan["embedding_key_template"]
+    elif "key_template" in plan:
+        embedding_plan["key_template"] = plan["key_template"]
+    directions, keys = resolve_plan(
+        embedding_plan, anchors, estimator, tensors
+    )
+    return directions[anchor], keys[str(anchor)]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Screen weight-equivalent layer-specific refusal directions."
@@ -176,9 +203,16 @@ def main() -> int:
         directions, direction_keys = resolve_plan(
             plan, anchors, estimator, tensors
         )
+        embedding_direction, embedding_direction_keys = resolve_embedding_direction(
+            plan, anchors, estimator, tensors
+        )
         alpha = float(plan.get("alpha", 1.0))
         with layerwise_weight_equivalent_ablation_hooks(
-            model, cfg, directions, alpha
+            model,
+            cfg,
+            directions,
+            alpha,
+            embedding_direction=embedding_direction,
         ) as intervention:
             arms[name] = run_arm(
                 model,
@@ -191,6 +225,7 @@ def main() -> int:
             )
         arms[name]["direction_source"] = plan["source"]
         arms[name]["direction_keys_by_target_layer"] = direction_keys
+        arms[name]["embedding_direction_keys"] = embedding_direction_keys
         arms[name]["intervention"] = intervention
 
     write_json(

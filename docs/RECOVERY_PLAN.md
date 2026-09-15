@@ -27,6 +27,13 @@ The plain matched direction failed for a different reason. It produced 256 empty
 9. Run quick capability benchmarks only after a candidate passes the refusal screen.
 10. Use final-test data and write a permanent checkpoint only after every validation gate passes.
 
+## Execution findings
+
+- Eight layer-specific rank-1 arms produced 576 non-empty outputs. All mean harmless KL values were below 0.10. None removed more than one of 32 harmful refusals.
+- Three rank-1 controls also produced only non-empty outputs. The best control was a global layer-52 consensus direction. It removed 3 of 16 standard and 6 of 16 matched refusals, with mean KL 0.084. It did not reach the 90% gate.
+- Six no-embedding rank-2 and rank-4 subspace arms completed. A simple refusal-phrase check found refusals in every harmful output. The incomplete rank-8 arm was stopped after 12 records because low-rank hook overhead made it too slow and the lower-rank arms had no early effect.
+- The layer-specific and subspace pilots did not project the token embedding output. This leaves a refusal component that later residual-writer projections cannot remove. The next pilots add an explicit embedding direction. The intervention remains exactly equivalent to projecting the embedding weight rows and the selected residual-writer output weights.
+
 ## Controls
 
 - No OpenAI model or remote inference API is permitted for classification.
