@@ -21,3 +21,11 @@ def test_nearest_anchor_uses_nearest_and_lower_tie() -> None:
 def test_empty_plan_filter_selects_all_plans() -> None:
     plans = [{"name": "one"}, {"name": "two"}]
     assert MODULE.select_plans(plans, set()) == plans
+
+
+def test_plan_target_range_is_inclusive() -> None:
+    assert MODULE.plan_target_layers({"target_first": 3, "target_last": 5}) == [
+        3,
+        4,
+        5,
+    ]

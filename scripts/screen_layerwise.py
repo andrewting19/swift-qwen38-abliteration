@@ -42,6 +42,22 @@ def select_plans(plans: list[dict], requested: set[str]) -> list[dict]:
     return selected
 
 
+def plan_target_layers(plan: dict) -> list[int]:
+    if "target_layers" in plan:
+        values = [int(value) for value in plan["target_layers"]]
+    elif "target_first" in plan and "target_last" in plan:
+        first = int(plan["target_first"])
+        last = int(plan["target_last"])
+        if last < first:
+            raise ValueError("Plan target_last must not be less than target_first.")
+        values = list(range(first, last + 1))
+    else:
+        raise ValueError("A plan needs target_layers or a target range.")
+    if not values or len(values) != len(set(values)):
+        raise ValueError("Plan target layers must be nonempty and unique.")
+    return values
+
+
 def resolve_plan(
     plan: dict,
     anchors: list[int],
@@ -53,8 +69,11 @@ def resolve_plan(
     source = str(plan["source"])
     directions = {}
     direction_keys = {}
-    for target in [int(value) for value in plan["target_layers"]]:
-        anchor = nearest_anchor(target, anchors)
+    fixed_anchor = plan.get("fixed_anchor")
+    if fixed_anchor is not None and int(fixed_anchor) not in anchors:
+        raise ValueError("Plan fixed_anchor must be one of the study anchors.")
+    for target in plan_target_layers(plan):
+        anchor = int(fixed_anchor) if fixed_anchor is not None else nearest_anchor(target, anchors)
         if source == "consensus":
             keys = [
                 f"standard_layer_{anchor}_{estimator}",
