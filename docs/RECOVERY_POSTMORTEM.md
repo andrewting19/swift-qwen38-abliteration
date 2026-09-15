@@ -82,7 +82,7 @@ The final edit needed both output-module types, all 64 language layers, and full
 - Odd layers only: 16/16 and 16/16 remained.
 - Alpha 0.50: 16/16 and 16/16 remained.
 
-The practical cause is residual rewriting. If one writer or one layer path stays unchanged, it can write the refusal feature back into the residual stream. If alpha is below 1, enough of the feature can remain for the model's refusal circuit to continue.
+The practical cause is residual rewriting. If one writer or one layer path stays unchanged, it can write the refusal feature back into the residual stream. At lower alpha values, enough of the feature remains for the model's refusal circuit to continue.
 
 ## KL trade-off
 
