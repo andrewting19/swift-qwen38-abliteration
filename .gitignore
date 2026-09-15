@@ -31,3 +31,4 @@ work/
 .env.*
 *.pem
 *token*
+.dashboard-runtime.json

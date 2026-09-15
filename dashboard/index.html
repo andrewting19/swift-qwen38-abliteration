@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Swift Qwen3.8 · Live status</title>
+  <style>
+    :root { color-scheme: dark; --bg:#0b1020; --panel:#121a2d; --panel-2:#17223a; --text:#edf3ff; --muted:#9aa9c6; --line:#273454; --cyan:#6be6dc; --blue:#87a9ff; --green:#72e09a; --amber:#f5c76d; --red:#ff8d9b; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background: radial-gradient(900px 480px at 80% -10%, #20355e 0%, transparent 65%), var(--bg); color:var(--text); font:14px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; }
+    .shell { width:min(1180px, calc(100% - 32px)); margin:0 auto; padding:34px 0 54px; }
+    .header { display:flex; justify-content:space-between; align-items:flex-start; gap:20px; margin-bottom:24px; }
+    h1,h2,h3,p { margin:0; } h1 { letter-spacing:-.03em; font-size:clamp(25px,4vw,38px); } h2 { font-size:16px; letter-spacing:-.01em; } h3 { font-size:13px; color:var(--muted); font-weight:600; }
+    .eyebrow { color:var(--cyan); text-transform:uppercase; font-size:11px; letter-spacing:.14em; font-weight:700; margin-bottom:8px; }
+    .sub { color:var(--muted); margin-top:8px; max-width:680px; }
+    .badge { border:1px solid #3f6e7d; color:var(--cyan); background:#13343d99; border-radius:999px; padding:8px 12px; white-space:nowrap; font-weight:700; font-size:12px; }
+    .badge.warn { border-color:#80632e; color:var(--amber); background:#43351966; }
+    .grid { display:grid; gap:14px; } .top { grid-template-columns:repeat(4,minmax(0,1fr)); } .wide { grid-template-columns:1.25fr .75fr; margin-top:14px; } .lower { grid-template-columns:1fr 1fr; margin-top:14px; }
+    .card { background:linear-gradient(145deg,#17223aee,#10182bee); border:1px solid var(--line); border-radius:16px; padding:18px; box-shadow:0 16px 40px #00000022; }
+    .stat { min-height:106px; } .stat h3 { margin-bottom:10px; } .value { font-size:22px; font-weight:760; letter-spacing:-.02em; } .value.small { font-size:16px; } .hint { color:var(--muted); margin-top:5px; font-size:12px; }
+    .section-head { display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:17px; } .section-head span { color:var(--muted); font-size:12px; }
+    .progress-track { width:100%; height:11px; background:#293552; border-radius:10px; overflow:hidden; margin:14px 0 17px; } .progress-bar { height:100%; width:0; background:linear-gradient(90deg,var(--cyan),var(--blue)); border-radius:10px; transition:width .5s ease; }
+    .progress-row { display:flex; justify-content:space-between; color:var(--muted); font-size:12px; } .progress-row strong { color:var(--text); font-size:13px; }
+    .steps { display:grid; grid-template-columns:repeat(5,1fr); gap:7px; } .step { border-top:3px solid #3b4866; padding-top:9px; color:var(--muted); font-size:12px; } .step.done { border-color:var(--green); color:var(--text); } .step.active { border-color:var(--cyan); color:var(--cyan); } .step-dot { font-size:16px; display:block; margin-bottom:3px; }
+    .metric-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; } .metric { border:1px solid var(--line); border-radius:11px; padding:12px; background:#0d1526aa; } .metric .value { font-size:19px; } .metric .hint { min-height:32px; }
+    .direction { border-top:1px solid var(--line); padding-top:13px; margin-top:15px; } .direction:first-of-type { border-top:0; padding-top:0; margin-top:0; } .direction-title { display:flex; justify-content:space-between; gap:10px; margin-bottom:8px; } .direction-title strong { font-size:13px; } .pill { border-radius:999px; background:#203a44; color:var(--cyan); padding:3px 8px; font-size:11px; }
+    .events { display:flex; flex-direction:column; gap:11px; } .event { display:grid; grid-template-columns:10px 1fr; gap:10px; } .event-dot { width:8px; height:8px; margin-top:5px; border-radius:50%; background:var(--cyan); box-shadow:0 0 0 3px #1d4550; } .event time { color:var(--muted); font-size:11px; } .event p { margin-top:2px; font-size:12px; }
+    .artifact { display:grid; grid-template-columns:1fr auto; gap:4px 10px; border-top:1px solid var(--line); padding:11px 0; } .artifact:first-of-type { border-top:0; padding-top:0; } .artifact-name { font-weight:650; } .artifact-meta { color:var(--muted); font-size:11px; word-break:break-all; } .hash { color:var(--blue); font:11px ui-monospace,SFMono-Regular,Menlo,monospace; text-align:right; }
+    .error { color:var(--amber); background:#44371b66; border:1px solid #80632e; border-radius:10px; padding:10px; font-size:12px; display:none; margin-top:14px; } .error.show { display:block; }
+    .footer { color:var(--muted); text-align:center; margin-top:20px; font-size:11px; } code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color:#c7d4f4; }
+    @media (max-width:900px) { .top { grid-template-columns:repeat(2,1fr); } .wide,.lower { grid-template-columns:1fr; } }
+    @media (max-width:520px) { .shell { width:min(100% - 20px,1180px); padding-top:22px; } .header { flex-direction:column; } .top { grid-template-columns:1fr; } .steps { grid-template-columns:1fr 1fr; } .metric-grid { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="header">
+      <div><div class="eyebrow">Swift Qwen3.8 · experiment monitor</div><h1>Live run status</h1><p class="sub">A safe, read-only view of progress and measured results. Prompt bodies and model generations are never shown here.</p></div>
+      <div id="runBadge" class="badge">Loading status…</div>
+    </header>
+
+    <section class="grid top" aria-label="Run summary">
+      <article class="card stat"><h3>Current phase</h3><div id="phase" class="value small">—</div><div id="phaseHint" class="hint">—</div></article>
+      <article class="card stat"><h3>GPU / instance</h3><div id="gpu" class="value small">—</div><div id="gpuHint" class="hint">—</div><div id="gpuRuntime" class="hint">—</div></article>
+      <article class="card stat"><h3>Rental rate</h3><div id="rate" class="value small">—</div><div id="rateHint" class="hint">—</div></article>
+      <article class="card stat"><h3>Credit state</h3><div id="credit" class="value small">—</div><div id="creditHint" class="hint">—</div></article>
+    </section>
+
+    <section class="grid wide">
+      <article class="card">
+        <div class="section-head"><h2>Execution progress</h2><span id="updated">Last update —</span></div>
+        <div class="progress-row"><strong id="progressLabel">—</strong><strong id="progressPct">—</strong></div>
+        <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
+        <div id="steps" class="steps"></div>
+        <div id="runtimeCount" class="hint">Observed outputs — / —</div><div id="error" class="error"></div>
+      </article>
+      <article class="card">
+        <div class="section-head"><h2>Direction quality</h2><span>safe aggregate metrics</span></div>
+        <div class="metric-grid"><div class="metric"><h3>Cross-source cosine</h3><div id="cosine" class="value">—</div><div class="hint">layer 38 agreement</div></div><div class="metric"><h3>Shortlisted directions</h3><div id="activeDirections" class="value">—</div><div class="hint">reversible screen</div></div><div class="metric"><h3>Screen status</h3><div id="screenStatus" class="value small">—</div><div class="hint">base, matched, standard</div></div></div>
+        <div id="directions"></div>
+      </article>
+    </section>
+
+    <section class="grid lower">
+      <article class="card"><div class="section-head"><h2>Recent safe events</h2><span id="eventCount">—</span></div><div id="events" class="events"></div></article>
+      <article class="card"><div class="section-head"><h2>Artifacts & hashes</h2><span>metadata only</span></div><div id="artifacts"></div></article>
+    </section>
+    <div class="footer">Polling <code id="statusUrlLabel">status.json</code> every <span id="pollSeconds">3</span>s · dashboard is local-only</div>
+  </main>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const defaultStatus = '/status.json';
+    const statusUrl = params.get('status') || defaultStatus;
+    const pollMs = Math.max(2000, Number(params.get('poll_ms') || 3000));
+    document.getElementById('statusUrlLabel').textContent = statusUrl;
+    document.getElementById('pollSeconds').textContent = Math.round(pollMs / 1000);
+    const $ = (id) => document.getElementById(id);
+    const safe = (v, fallback='—') => v === null || v === undefined || v === '' ? fallback : String(v);
+    const formatUsd = (v) => v === null || v === undefined ? 'Checking…' : `$${Number(v).toFixed(2)}`;
+    const formatTime = (v) => { if (!v) return '—'; const d = new Date(v); return Number.isNaN(d.getTime()) ? v : d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); };
+    function render(s) {
+      const run = s.run || {}, rental = s.rental || {}, credit = s.credit || {}, progress = s.progress || {}, dir = s.direction_quality || {};
+      $('runBadge').textContent = `${safe(run.status, 'unknown').toUpperCase()} · ${safe(run.id)}`;
+      $('runBadge').className = `badge${run.status === 'running' ? '' : ' warn'}`;
+      $('phase').textContent = safe(progress.phase_label || progress.phase);
+      $('phaseHint').textContent = safe(progress.phase_detail, 'No phase detail');
+      $('gpu').textContent = safe(rental.gpu);
+      $('gpuHint').textContent = `${safe(rental.instance_id)} · ${safe(rental.provider, 'provider unknown')}`;
+      $('rate').textContent = formatUsd(rental.hourly_rate_usd) + '/h';
+      $('rateHint').textContent = rental.started_at ? `started ${formatTime(rental.started_at)}` : 'start time unavailable';
+      $('credit').textContent = credit.balance_usd === null || credit.balance_usd === undefined ? 'Checking…' : formatUsd(credit.balance_usd);
+      $('creditHint').textContent = safe(credit.note, 'Provider balance is not exposed in this snapshot');
+      const pct = Math.max(0, Math.min(100, Number(progress.percent || 0)));
+      $('progressLabel').textContent = safe(progress.label, 'Working'); $('progressPct').textContent = `${pct.toFixed(0)}%`; $('progressBar').style.width = `${pct}%`;
+      const updateAge = s.updated_at ? (Date.now() - new Date(s.updated_at).getTime()) / 1000 : Infinity;
+      const stale = !Number.isFinite(updateAge) || updateAge > Math.max(30, pollMs / 1000 * 2);
+      $('updated').textContent = `${stale ? '⚠ stale · ' : ''}Last update ${formatTime(s.updated_at)}`;
+      $('updated').style.color = stale ? 'var(--amber)' : 'var(--muted)';
+      const runtime = s.runtime || {};
+      $('runtimeCount').textContent = `Observed outputs ${safe(runtime.observed_outputs, 0)} / ${safe(runtime.expected_outputs, 768)} · line counts are aggregate-only`;
+      const gpuTelemetry = Object.assign({}, runtime, rental);
+      $('gpuRuntime').textContent = gpuTelemetry.gpu_memory_used_mib === undefined && gpuTelemetry.memory_used_mib === undefined ? 'GPU telemetry unavailable' : `${safe(gpuTelemetry.gpu_memory_used_mib ?? gpuTelemetry.memory_used_mib)} MiB · ${safe(gpuTelemetry.gpu_utilization_percent ?? gpuTelemetry.utilization_percent, 0)}% util`;
+      $('steps').innerHTML = (progress.steps || []).map(x => `<div class="step ${x.state || ''}"><span class="step-dot">${x.state === 'done' ? '✓' : x.state === 'active' ? '●' : '○'}</span>${safe(x.label)}</div>`).join('');
+      if (s.error) { $('error').textContent = `Notice: ${s.error}`; $('error').classList.add('show'); } else $('error').classList.remove('show');
+      $('cosine').textContent = safe(dir.cross_source_cosine);
+      $('activeDirections').textContent = safe(dir.active_count);
+      $('screenStatus').textContent = safe(dir.status);
+      $('directions').innerHTML = (dir.candidates || []).map(x => `<div class="direction"><div class="direction-title"><strong>${safe(x.name)}</strong><span class="pill">${safe(x.state)}</span></div><div class="metric-grid"><div class="metric"><h3>Bootstrap median</h3><div class="value">${safe(x.bootstrap_median)}</div></div><div class="metric"><h3>Separation</h3><div class="value">${safe(x.separation)}</div></div><div class="metric"><h3>Layer</h3><div class="value">${safe(x.layer)}</div></div></div></div>`).join('');
+      const events = s.events || []; $('eventCount').textContent = `${events.length} recorded`;
+      $('events').innerHTML = events.length ? events.slice().reverse().map(x => `<div class="event"><span class="event-dot"></span><div><time>${formatTime(x.at)} · ${safe(x.kind, 'event')}</time><p>${safe(x.message)}</p></div></div>`).join('') : '<p class="hint">No events yet.</p>';
+      $('artifacts').innerHTML = (s.artifacts || []).map(x => `<div class="artifact"><div><div class="artifact-name">${safe(x.label)}</div><div class="artifact-meta">${safe(x.path)} · ${safe(x.size, 'size unknown')}</div></div><div class="hash">${safe(x.sha256, 'hash pending')}</div></div>`).join('');
+    }
+    async function poll() { try { const response = await fetch(`${statusUrl}${statusUrl.includes('?') ? '&' : '?'}t=${Date.now()}`, {cache:'no-store'}); if (!response.ok) throw new Error(`HTTP ${response.status}`); render(await response.json()); } catch (e) { $('runBadge').textContent = 'STATUS UNAVAILABLE'; $('runBadge').className = 'badge warn'; $('error').textContent = `Status file unavailable: ${e.message}`; $('error').classList.add('show'); } }
+    poll(); setInterval(poll, pollMs);
+  </script>
+</body>
+</html>
