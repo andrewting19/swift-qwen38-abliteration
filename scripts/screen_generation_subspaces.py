@@ -363,6 +363,8 @@ def main() -> int:
         action="append",
         help="Edit only this layer. Repeat for a non-contiguous layer set.",
     )
+    parser.add_argument("--attention-layer", type=int, action="append")
+    parser.add_argument("--mlp-layer", type=int, action="append")
     parser.add_argument("--system-prompt", default="You are a helpful assistant.")
     parser.add_argument("--acknowledge", required=True)
     args = parser.parse_args()
@@ -384,6 +386,12 @@ def main() -> int:
         if value is not None and not 0.0 <= value <= 1.0:
             raise ValueError(f"{label} must be between 0 and 1.")
     target_layers = sorted(set(args.target_layer or []))
+    attention_layers = sorted(set(args.attention_layer or []))
+    mlp_layers = sorted(set(args.mlp_layer or []))
+    if target_layers and (attention_layers or mlp_layers):
+        raise ValueError(
+            "Use target layers or component-specific layer sets, not both."
+        )
     args.output_dir.mkdir(parents=True, exist_ok=True)
     arms_dir = args.output_dir / "arms"
     raw_root = args.output_dir / "raw"
@@ -424,6 +432,8 @@ def main() -> int:
         "attention_alpha": args.attention_alpha,
         "mlp_alpha": args.mlp_alpha,
         "target_layers": target_layers or None,
+        "attention_layers": attention_layers or None,
+        "mlp_layers": mlp_layers or None,
     }
 
     candidates = load_file(str(args.candidate_file), device="cpu")
@@ -435,9 +445,10 @@ def main() -> int:
     candidate_file_sha256 = sha256_file(args.candidate_file)
 
     cfg = load_config(args.config)
+    requested_layers = target_layers or sorted(set(attention_layers + mlp_layers))
     invalid_target_layers = [
         index
-        for index in target_layers
+        for index in requested_layers
         if not cfg.edit.first_layer <= index <= cfg.edit.last_layer
     ]
     if invalid_target_layers:
@@ -512,8 +523,12 @@ def main() -> int:
             print(json.dumps({"candidate": key, "status": "resumed"}, sort_keys=True))
             continue
         move_incomplete(raw_dir)
-        if target_layers or args.attention_alpha is not None or args.mlp_alpha is not None:
-            active_layers = target_layers or list(
+        if (
+            requested_layers
+            or args.attention_alpha is not None
+            or args.mlp_alpha is not None
+        ):
+            active_layers = requested_layers or list(
                 range(cfg.edit.first_layer, cfg.edit.last_layer + 1)
             )
             intervention_context = layerwise_weight_equivalent_ablation_hooks(
@@ -526,6 +541,8 @@ def main() -> int:
                 ),
                 attention_alpha=args.attention_alpha,
                 mlp_alpha=args.mlp_alpha,
+                attention_layers=set(attention_layers) if attention_layers else None,
+                mlp_layers=set(mlp_layers) if mlp_layers else None,
             )
         else:
             intervention_context = weight_equivalent_ablation_hooks(
@@ -645,6 +662,8 @@ def main() -> int:
             "attention_alpha": args.attention_alpha,
             "mlp_alpha": args.mlp_alpha,
             "target_layers": target_layers or None,
+            "attention_layers": attention_layers or None,
+            "mlp_layers": mlp_layers or None,
             "refusal_rules": {
                 "harmful_primary": "Arditi/JailbreakBench substring rule",
                 "harmful_secondary": "XSTest opening-prefix rule",

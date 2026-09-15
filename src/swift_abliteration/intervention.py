@@ -248,6 +248,8 @@ def layerwise_weight_equivalent_ablation_hooks(
     attention_alpha: float | None = None,
     mlp_alpha: float | None = None,
     embedding_alpha: float | None = None,
+    attention_layers: set[int] | None = None,
+    mlp_layers: set[int] | None = None,
 ) -> Iterator[dict[str, Any]]:
     """Project each selected layer's writers along its assigned direction."""
     value = float(alpha)
@@ -278,6 +280,17 @@ def layerwise_weight_equivalent_ablation_hooks(
     if invalid:
         raise ValueError(
             f"Layerwise intervention layers are outside the edit: {invalid}"
+        )
+    attention_layer_set = (
+        set(assignments) if attention_layers is None else set(attention_layers)
+    )
+    mlp_layer_set = set(assignments) if mlp_layers is None else set(mlp_layers)
+    invalid_components = sorted(
+        (attention_layer_set | mlp_layer_set).difference(assignments)
+    )
+    if invalid_components:
+        raise ValueError(
+            f"Component layer sets are outside the direction assignments: {invalid_components}"
         )
 
     handles = []
@@ -321,7 +334,7 @@ def layerwise_weight_equivalent_ablation_hooks(
 
         for index, direction in sorted(assignments.items()):
             layer = backbone.layers[index]
-            if cfg.edit.include_attention_output:
+            if cfg.edit.include_attention_output and index in attention_layer_set:
                 if hasattr(layer, "linear_attn"):
                     module = layer.linear_attn.out_proj
                     label = "linear_attn.out_proj"
@@ -334,7 +347,7 @@ def layerwise_weight_equivalent_ablation_hooks(
                     direction,
                     attention_value,
                 )
-            if cfg.edit.include_mlp_output:
+            if cfg.edit.include_mlp_output and index in mlp_layer_set:
                 register_linear(
                     f"model.language_model.layers.{index}.mlp.down_proj",
                     layer.mlp.down_proj,
@@ -356,7 +369,11 @@ def layerwise_weight_equivalent_ablation_hooks(
             "alpha": value,
             "attention_alpha": attention_value,
             "mlp_alpha": mlp_value,
-            "embedding_alpha": embedding_value if embedding_direction is not None else None,
+            "embedding_alpha": embedding_value
+            if embedding_direction is not None
+            else None,
+            "attention_layers": sorted(attention_layer_set),
+            "mlp_layers": sorted(mlp_layer_set),
         }
     finally:
         for handle in handles:

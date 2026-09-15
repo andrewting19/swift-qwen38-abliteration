@@ -318,19 +318,23 @@ class LiveModelTests(unittest.TestCase):
             directions,
             attention_alpha=0.5,
             mlp_alpha=0.25,
+            attention_layers={0},
+            mlp_layers={1},
         ) as record:
             first = model.model.language_model.layers[0].linear_attn.out_proj(value)
             second = model.model.language_model.layers[1].linear_attn.out_proj(value)
             first_mlp = model.model.language_model.layers[0].mlp.down_proj(value)
             second_mlp = model.model.language_model.layers[1].mlp.down_proj(value)
         torch.testing.assert_close(first, torch.tensor([[[1.5, 4.0]]]))
-        torch.testing.assert_close(second, torch.tensor([[[3.0, 2.0]]]))
-        torch.testing.assert_close(first_mlp, torch.tensor([[[2.25, 4.0]]]))
+        torch.testing.assert_close(second, torch.tensor([[[3.0, 4.0]]]))
+        torch.testing.assert_close(first_mlp, torch.tensor([[[3.0, 4.0]]]))
         torch.testing.assert_close(second_mlp, torch.tensor([[[3.0, 3.0]]]))
         self.assertEqual(record["target_layers"], [0, 1])
-        self.assertEqual(record["module_count"], 4)
+        self.assertEqual(record["module_count"], 2)
         self.assertEqual(record["attention_alpha"], 0.5)
         self.assertEqual(record["mlp_alpha"], 0.25)
+        self.assertEqual(record["attention_layers"], [0])
+        self.assertEqual(record["mlp_layers"], [1])
 
     def test_layerwise_weight_hooks_project_an_orthonormal_subspace(self):
         from swift_abliteration.intervention import (
