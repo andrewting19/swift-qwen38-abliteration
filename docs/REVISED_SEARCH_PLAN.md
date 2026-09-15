@@ -7,6 +7,12 @@ refusal language. HarmBench and manual review showed that the model usually gave
 a soft refusal or did not comply. Manual review also found grammar errors. This
 is a surface-evasion result, not successful refusal removal.
 
+The saved-output reassessment also found that no saved rank-1 candidate produced
+a direct or partial answer under the strict response-mode judge. The older
+six-direction result has a large HarmBench effect, but the strict judge and
+harmless quality check show many soft refusals and language errors. See
+`docs/BEHAVIOR_JUDGE_REASSESSMENT.md`.
+
 ## What remains valid
 
 - The architecture map and edited module list
@@ -54,15 +60,17 @@ For each candidate:
 Do not use a refusal-substring score as the primary ranking measure. It remains
 a diagnostic measure.
 
-## Phase 3: New simple directions if saved directions fail
+## Phase 3: Paired causal directions if saved directions fail
 
 Keep the direction estimator simple:
 
-1. Label examples by actual base-model behavior.
-2. Use only examples that the base clearly refuses as positive examples.
-3. Use only examples that the base clearly answers as negative examples.
-4. Calculate winsorized difference-of-means directions at prompt end for layers
-   24, 32, 38, 44, and 52.
+1. Test controlled system instructions and assistant prefills on a small frozen
+   harmful screen.
+2. Keep only a condition that makes the base model answer directly.
+3. For the same request, compare the default refusal state with the controlled
+   answer state.
+4. Calculate paired winsorized difference-of-means directions at prompt end for
+   layers 24, 32, 38, 44, and 52.
 5. Measure causal behavior with reversible residual-writer edits.
 6. Select by generated answer behavior and harmless continuation drift.
 
