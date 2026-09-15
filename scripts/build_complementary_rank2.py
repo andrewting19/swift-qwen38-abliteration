@@ -23,7 +23,9 @@ def orthonormal_pair(first: np.ndarray, second: np.ndarray) -> np.ndarray:
     if not np.all(np.isfinite(values)):
         raise ValueError("Direction vectors must be finite.")
     q, _ = np.linalg.qr(values.T, mode="reduced")
-    basis = q.T.astype(np.float32)
+    # Safetensors requires a C-contiguous array. The transpose is otherwise a
+    # strided view whose serialized row layout can differ from the QR result.
+    basis = np.ascontiguousarray(q.T, dtype=np.float32)
     if basis.shape[0] != 2 or not np.allclose(
         basis @ basis.T, np.eye(2), atol=2e-5, rtol=2e-5
     ):

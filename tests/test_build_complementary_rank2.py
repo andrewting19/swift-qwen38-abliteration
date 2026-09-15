@@ -20,6 +20,7 @@ def arm(standard, matched):
 
 def test_orthonormal_pair_returns_two_perpendicular_rows() -> None:
     basis = orthonormal_pair(np.array([1.0, 0.0, 0.0]), np.array([1.0, 1.0, 0.0]))
+    assert basis.flags.c_contiguous
     np.testing.assert_allclose(basis @ basis.T, np.eye(2), atol=1e-6)
 
 
