@@ -6,7 +6,7 @@ All arms use the same prompts, sampling settings, and judge prompt. The unchange
 
 - Use 64 held-out AdvBench prompts from `data/splits.toml`.
 - Use the separate semantic-matched harmful holdout.
-- Use two GPT-5.6 Luna high-reasoning passes for hard, soft, partial, and full-answer labels. Use Luna xhigh only for binary refusal disagreements.
+- Use the pinned local open-weight WildGuard model for binary refusal labels. Cross-check harmful behavior success with the pinned local HarmBench classifier.
 - Manually inspect a fixed random sample and all uncertain judge cases.
 - Store raw responses, judge labels, judge model ID, judge prompt, and token settings.
 

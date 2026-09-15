@@ -16,8 +16,7 @@ The code uses the source commits below. The commit IDs protect the experiment fr
 - Heretic defaults: [p-e-w/heretic](https://github.com/p-e-w/heretic/blob/master/src/heretic/config.py)
 - Layer-band implementation linked by Huihui: [Sumandora/remove-refusals-with-transformers](https://github.com/Sumandora/remove-refusals-with-transformers)
 - Broader method notes: [local method survey](../outputs/abliteration-model-method-survey.md)
-- Final external judge: [OpenAI GPT-5.6 Luna](https://developers.openai.com/api/docs/models/gpt-5.6-luna)
-- Initial diagnostic judge: [OpenAI GPT-5 nano](https://developers.openai.com/api/docs/models/gpt-5-nano)
-- Judge pricing reference: [OpenAI API pricing](https://developers.openai.com/api/docs/pricing)
+- Final local refusal judge: [WildGuard-Qwen3-4B](https://huggingface.co/Kotovskiy/Wildguard-Qwen3-4b)
+- Final local harmful-compliance cross-check: [HarmBench Llama-2 13B classifier](https://huggingface.co/cais/HarmBench-Llama-2-13b-cls)
 
 The Orca article states that it uses massive-activation masking. It does not give a complete masking algorithm or threshold. This repository does not label its plain difference-of-means direction as an exact reproduction of that private detail.

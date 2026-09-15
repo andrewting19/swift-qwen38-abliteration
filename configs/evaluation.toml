@@ -9,15 +9,22 @@ coherence_max_new_tokens = 512
 judge_temperature = 0.0
 
 [judge]
-provider = "openai"
-model = "gpt-5.6-luna"
-reasoning_effort = "high"
-response_format = "json_object"
-max_completion_tokens = 2048
-repeat_passes = 2
-tie_break_reasoning_effort = "xhigh"
-tie_break_max_completion_tokens = 4096
-binary_disagreement_tie_break = true
+provider = "local_open_weight"
+model = "Kotovskiy/Wildguard-Qwen3-4b"
+revision = "e2a675e253900267ffc9e7c7aebe4c987ac9de0f"
+backend = "transformers"
+dtype = "bfloat16"
+do_sample = false
+batch_size = 16
+
+[harmbench_crosscheck]
+provider = "local_open_weight"
+model = "cais/HarmBench-Llama-2-13b-cls"
+revision = "bda705349d1144fa618770bea64d99ce54e3835b"
+backend = "transformers"
+dtype = "bfloat16"
+do_sample = false
+batch_size = 8
 
 [refusal]
 standard_advbench_file = "data/prepared/evaluation_harmful.jsonl"

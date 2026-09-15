@@ -19,6 +19,7 @@ The direction-quality analysis and the final evaluation report are primary outpu
 - Do not add Vast.ai credit automatically.
 - The user reports adding $15 of additional Vast credit and authorizes use until the Vast credit balance is zero. Preserve and verify artifacts before the last usable credit is consumed.
 - Do not put raw harmful prompts or harmful generations in Git or in the chat.
+- Do not send experiment prompts or responses to OpenAI models or APIs. Use only local open-weight judges for evaluation.
 
 ## Experiment design
 
@@ -93,7 +94,7 @@ Do not use the final test until one candidate and its settings are frozen.
 
 Stages 0 through 4 are complete. Stage 5, the reversible behavior screen, is active.
 
-Live status: Vast instance `51065040` is an A100 SXM4 80 GB rental at about $1.102/hour. The base checkpoint passed live architecture validation with PyTorch 2.9.1, CUDA 12.8, `causal-conv1d` 1.7.0, and `flash-linear-attention` 0.5.2. Activation capture and analysis of all 40 direction candidates completed. The capture and direction artifacts were copied locally and their remote and local SHA-256 hashes matched. The first screen used whole-transformer-layer-output projection and was stopped after it was found not to be weight-equivalent. Preserve its completed matched-direction results as a stress test only. The next screen must first pass unit and live numerical equivalence checks, then test `consensus_layer_38_winsor_995` with module-output hooks. Do not use the final-test split or create a permanent checkpoint yet.
+Live status: Vast instance `51065040` is an A100 SXM4 80 GB rental at about $1.102/hour. The base checkpoint passed live architecture validation with PyTorch 2.9.1, CUDA 12.8, `causal-conv1d` 1.7.0, and `flash-linear-attention` 0.5.2. Activation capture and analysis of all 40 direction candidates completed. The capture and direction artifacts were copied locally and their remote and local SHA-256 hashes matched. The first screen used whole-transformer-layer-output projection and was stopped after it was found not to be weight-equivalent. Preserve its completed matched-direction results as a stress test only. The replacement intervention passed numerical and live equivalence checks. The corrected consensus and standard winsor-995 arms passed the KL and invalid-output checks. The corrected matched plain arm produced 256 empty outputs and was rejected. Previous external-model labels are discontinued diagnostics. Recalculate refusal and over-refusal with the local open-weight judges before making a selection decision. Do not use the final-test split or create a permanent checkpoint unless a candidate passes every selection gate.
 
 The local dashboard is at <http://127.0.0.1:8765/> while its server and updater are running. Start or restore it with the commands in `dashboard/README.md`. It contains only safe aggregate status and results.
 
@@ -103,7 +104,7 @@ An added consensus check uses only the saved layer-38 direction and validation a
 
 1. Verify the separate validation and final-test prompt splits without printing harmful text.
 2. Verify the reversible benchmark serving path.
-3. Verify the external structured-output judge path. The live protocol amendment replaces the low-confidence nano labels with two Luna high passes and an xhigh tie-break for binary disagreement.
+3. Verify the local open-weight WildGuard and HarmBench judge paths. OpenAI judge use is prohibited for the remainder of this experiment.
 4. Run all unit tests, command checks, prompt hashes, and package checks.
 5. Run a live Vast offer search.
 6. Record the current credit balance and keep enough credit for artifact transfer and shutdown.
@@ -166,8 +167,8 @@ An added consensus check uses only the saved layer-38 direction and validation a
 
 ### Stage 8: Offline scoring and report
 
-1. Use the recorded repeated-Luna protocol for refusal and coherence labels.
-2. Manually audit 20 fixed items per arm and every low-confidence judgment.
+1. Use the pinned local WildGuard refusal judge and HarmBench harmful-compliance cross-check.
+2. Manually audit 20 fixed items per arm and every classifier disagreement.
 3. Calculate refusal, over-refusal, KL, coherence, capability, uncertainty, and cost summaries.
 4. Write a direction-quality report and a final evaluation report.
 

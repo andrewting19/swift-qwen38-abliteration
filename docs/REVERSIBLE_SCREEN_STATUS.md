@@ -35,4 +35,12 @@ The live check passed on the target model:
 - Maximum sampled absolute BF16 difference: 0.03125
 - Live check artifact SHA-256: `269eed675cf0afd33edbfcaf2eda08ee222639cb50c7ced4181167a7be6377db`
 
-The selected `consensus_layer_38_winsor_995` weight-equivalent screen is active. The final-test split remains unused. No permanent checkpoint exists.
+## Corrected candidate results
+
+The `consensus_layer_38_winsor_995` arm used the verified in-memory weight edit on 129 runtime tensors. It produced 256 nonempty responses. Its mean standard harmless KL is 0.033 nats, which passes the 0.10 limit. Previous external-model refusal and coherence labels are discontinued diagnostics. Recalculate these metrics with the local open-weight judges before making a selection decision.
+
+The corrected `matched_layer_38_plain` arm produced 256 empty decoded responses and mean standard harmless KL of 15.106 nats. The fixed protocol counts all empty responses as refusal-equivalent. This direction is rejected as destructive.
+
+The `standard_layer_38_winsor_995` corrected screen produced 256 nonempty responses. Its mean standard harmless KL is 0.027 nats, which passes the 0.10 limit. Local open-weight scoring is pending.
+
+The final-test split remains unused. No permanent checkpoint exists.
