@@ -28,6 +28,20 @@ def nearest_anchor(layer: int, anchors: list[int]) -> int:
     return min(anchors, key=lambda anchor: (abs(anchor - layer), anchor))
 
 
+def select_plans(plans: list[dict], requested: set[str]) -> list[dict]:
+    selected = [
+        plan
+        for plan in plans
+        if not requested or str(plan["name"]) in requested
+    ]
+    selected_names = {str(plan["name"]) for plan in selected}
+    if requested and requested != selected_names:
+        raise ValueError(
+            f"Requested plans are not defined: {sorted(requested - selected_names)}"
+        )
+    return selected
+
+
 def resolve_plan(
     plan: dict,
     anchors: list[int],
@@ -92,14 +106,7 @@ def main() -> int:
     anchors = [int(value) for value in plan_cfg["study"]["anchor_layers"]]
     estimator = str(plan_cfg["study"]["estimator"])
     requested = set(args.plan_name or [])
-    plans = [
-        plan
-        for plan in plan_cfg["plans"]
-        if not requested or str(plan["name"]) in requested
-    ]
-    if requested != {str(plan["name"]) for plan in plans}:
-        missing = sorted(requested - {str(plan["name"]) for plan in plans})
-        raise ValueError(f"Requested plans are not defined: {missing}")
+    plans = select_plans(plan_cfg["plans"], requested)
 
     output = Path(args.output_dir)
     output.mkdir(parents=True, exist_ok=False)

@@ -16,3 +16,8 @@ def test_nearest_anchor_uses_nearest_and_lower_tie() -> None:
     assert MODULE.nearest_anchor(36, anchors) == 38
     assert MODULE.nearest_anchor(41, anchors) == 38
     assert MODULE.nearest_anchor(55, anchors) == 52
+
+
+def test_empty_plan_filter_selects_all_plans() -> None:
+    plans = [{"name": "one"}, {"name": "two"}]
+    assert MODULE.select_plans(plans, set()) == plans

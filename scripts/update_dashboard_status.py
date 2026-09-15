@@ -144,6 +144,7 @@ def refresh(status_path: Path, config: dict[str, Any], args: argparse.Namespace)
         if not overlay_path.is_absolute():
             overlay_path = ROOT / overlay_path
         overlay = load_config(overlay_path)
+        snapshot = deep_merge(snapshot, overlay)
     host = args.remote_host or config.get("remote_host")
     identity = args.identity or config.get("identity_file")
     port = args.ssh_port or config.get("ssh_port")
