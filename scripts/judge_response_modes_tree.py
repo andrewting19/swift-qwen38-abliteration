@@ -42,7 +42,7 @@ def main() -> int:
     parser.add_argument("--group", action="append")
     parser.add_argument("--model", default="Qwen/Qwen3-4B-Instruct-2507")
     parser.add_argument(
-        "--revision", default="e7974da369bd887ad4f10a072ec4f933ac5391bf"
+        "--revision", default="cdbee75f17c01a7cc42f958dc650907174af0554"
     )
     parser.add_argument("--batch-size", type=int, default=24)
     parser.add_argument("--max-input-tokens", type=int, default=2048)
