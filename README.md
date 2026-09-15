@@ -4,6 +4,9 @@ This private research repository contains a controlled refusal-direction experim
 
 The GPU experiment is complete. The best reversible six-direction edit passed the refusal-removal, matched-harmless, invalid-output, deterministic quality, and three measured capability gates. It failed the fixed mean-KL gate. No permanent checkpoint was written and the final-test split was not used.
 
+The planned low-cost rank-1 rerun is in `docs/RANK1_RERUN_PLAN.md`. It is not a
+claim that the existing six-direction candidate passed all gates.
+
 ## Current state
 
 - The base model, judge models, and dataset revisions are pinned.

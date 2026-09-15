@@ -163,14 +163,10 @@ def apply_runtime_edit(
     if cfg.edit.include_mtp and generation_uses_mtp:
         mtp_layer = mtp_root(model).layers[0]
         if cfg.edit.include_attention_output:
-            project_output_weight_(
-                mtp_layer.self_attn.o_proj.weight, direction, value
-            )
+            project_output_weight_(mtp_layer.self_attn.o_proj.weight, direction, value)
             edited.append("mtp.layers.0.self_attn.o_proj.weight")
         if cfg.edit.include_mlp_output:
-            project_output_weight_(
-                mtp_layer.mlp.down_proj.weight, direction, value
-            )
+            project_output_weight_(mtp_layer.mlp.down_proj.weight, direction, value)
             edited.append("mtp.layers.0.mlp.down_proj.weight")
     return {
         "type": "in_memory_weight_projection",
@@ -212,7 +208,9 @@ def apply_layerwise_runtime_edit(
         or not 0 <= index < len(backbone.layers)
     ]
     if invalid:
-        raise ValueError(f"Layerwise intervention layers are outside the edit: {invalid}")
+        raise ValueError(
+            f"Layerwise intervention layers are outside the edit: {invalid}"
+        )
 
     edited: list[str] = []
     if embedding_direction is not None:
@@ -225,7 +223,9 @@ def apply_layerwise_runtime_edit(
                 "The input embedding and output head are tied. The edit does not "
                 "include the output head."
             )
-        project_embedding_rows_(backbone.embed_tokens.weight, embedding_direction, value)
+        project_embedding_rows_(
+            backbone.embed_tokens.weight, embedding_direction, value
+        )
         edited.append("model.language_model.embed_tokens.weight")
 
     for index, direction in sorted(assignments.items()):
@@ -346,22 +346,122 @@ def capture_last_token_logits(
     processor: Any,
     prompts: list[str],
     system_prompt: str | None = None,
+    batch_size: int = 1,
 ) -> list[Any]:
     torch = __import__("torch")
     backbone = text_backbone(model)
     tokenizer = getattr(processor, "tokenizer", processor)
     results: list[Any] = []
-    for prompt in prompts:
-        text = render_prompt(tokenizer, prompt, system_prompt)
-        batch = tokenizer([text], return_tensors="pt", padding=True)
-        device = backbone.embed_tokens.weight.device
-        batch = {
-            name: value.to(device)
-            for name, value in batch.items()
-            if hasattr(value, "to")
-        }
-        with torch.inference_mode():
-            output = model(**batch, use_cache=False)
-        position = int(batch["attention_mask"][0].sum().item()) - 1
-        results.append(output.logits[0, position].float().cpu())
+    if batch_size <= 0:
+        raise ValueError("Batch size must be positive.")
+    previous_padding_side = tokenizer.padding_side
+    tokenizer.padding_side = "left"
+    try:
+        for start in range(0, len(prompts), batch_size):
+            values = prompts[start : start + batch_size]
+            texts = [render_prompt(tokenizer, value, system_prompt) for value in values]
+            batch = tokenizer(texts, return_tensors="pt", padding=True)
+            device = backbone.embed_tokens.weight.device
+            batch = {
+                name: value.to(device)
+                for name, value in batch.items()
+                if hasattr(value, "to")
+            }
+            with torch.inference_mode():
+                output = model(**batch, use_cache=False)
+            results.extend(output.logits[:, -1].float().cpu().unbind(0))
+    finally:
+        tokenizer.padding_side = previous_padding_side
     return results
+
+
+def capture_prompt_and_first_output_activations_multi(
+    model: Any,
+    processor: Any,
+    prompts: list[str],
+    layer_indices: list[int],
+    system_prompt: str | None = None,
+    batch_size: int = 4,
+) -> dict[str, Any]:
+    """Capture prompt-end and first-generated-token states in one cached generation."""
+    torch = __import__("torch")
+    backbone = text_backbone(model)
+    tokenizer = getattr(processor, "tokenizer", processor)
+    indices = tuple(dict.fromkeys(int(index) for index in layer_indices))
+    if not indices:
+        raise ValueError("At least one capture layer is required.")
+    invalid = [index for index in indices if not 0 <= index < len(backbone.layers)]
+    if invalid:
+        raise ValueError(f"Capture layers are outside the model: {invalid}")
+    if batch_size <= 0:
+        raise ValueError("Batch size must be positive.")
+
+    calls: dict[int, list[Any]] = {index: [] for index in indices}
+
+    def make_hook(index: int):
+        def hook(_module: Any, _inputs: Any, output: Any):
+            tensor = output[0] if isinstance(output, tuple) else output
+            calls[index].append(tensor.detach())
+
+        return hook
+
+    handles = [
+        backbone.layers[index].register_forward_hook(make_hook(index))
+        for index in indices
+    ]
+    activations = {
+        "prompt_end": {index: [] for index in indices},
+        "first_output": {index: [] for index in indices},
+    }
+    first_step_logits: list[Any] = []
+    first_token_ids: list[int] = []
+    previous_padding_side = tokenizer.padding_side
+    tokenizer.padding_side = "left"
+    try:
+        for start in range(0, len(prompts), batch_size):
+            values = prompts[start : start + batch_size]
+            texts = [render_prompt(tokenizer, value, system_prompt) for value in values]
+            batch = tokenizer(texts, return_tensors="pt", padding=True)
+            device = backbone.embed_tokens.weight.device
+            batch = {
+                name: value.to(device)
+                for name, value in batch.items()
+                if hasattr(value, "to")
+            }
+            for captured in calls.values():
+                captured.clear()
+            with torch.inference_mode():
+                generated = model.generate(
+                    **batch,
+                    do_sample=False,
+                    max_new_tokens=2,
+                    return_dict_in_generate=True,
+                    output_scores=True,
+                    use_cache=True,
+                )
+            if len(generated.scores) < 1:
+                raise RuntimeError("Generation did not return first-step logits.")
+            input_width = int(batch["input_ids"].shape[1])
+            first_step_logits.extend(generated.scores[0].float().cpu().unbind(0))
+            first_token_ids.extend(
+                int(value) for value in generated.sequences[:, input_width].cpu()
+            )
+            for index in indices:
+                if len(calls[index]) < 2:
+                    raise RuntimeError(
+                        "Two generation forwards are required to capture the first "
+                        f"output token at layer {index}; observed {len(calls[index])}."
+                    )
+                prompt_values = calls[index][0][:, -1].float().cpu()
+                first_output_values = calls[index][1][:, -1].float().cpu()
+                activations["prompt_end"][index].extend(prompt_values.unbind(0))
+                activations["first_output"][index].extend(first_output_values.unbind(0))
+    finally:
+        tokenizer.padding_side = previous_padding_side
+        for handle in handles:
+            handle.remove()
+    return {
+        "activations": activations,
+        "first_step_logits": first_step_logits,
+        "first_token_ids": first_token_ids,
+    }

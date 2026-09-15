@@ -1,5 +1,10 @@
 # Canonical Project Plan
 
+The next approved reversible experiment is defined in `docs/RANK1_RERUN_PLAN.md`.
+It uses base refusal-token score filtering, two activation positions, a six-item
+statistical shortlist, causal removal and addition proxy tests, and a two-candidate
+32-token response pilot. It stops before rank 2 if no rank-1 candidate passes.
+
 Last updated: 2026-09-15
 
 This file is the source of truth for the project goal, current authority, execution order, decision gates, and restart procedure. Read this file first after a context reset or a new session.

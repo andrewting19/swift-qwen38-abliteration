@@ -20,6 +20,36 @@ from swift_abliteration.config import (
 
 @unittest.skipIf(torch is None, "torch is not installed")
 class LiveModelTests(unittest.TestCase):
+    def test_activation_addition_hook_is_temporary(self):
+        from swift_abliteration.intervention import activation_addition_input_hook
+
+        class Layer(torch.nn.Module):
+            def forward(self, hidden_states):
+                return hidden_states * 2
+
+        class Backbone(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.embed_tokens = torch.nn.Embedding(4, 2)
+                self.layers = torch.nn.ModuleList([Layer()])
+
+        class Root(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.model = torch.nn.Module()
+                self.model.language_model = Backbone()
+
+        model = Root()
+        hidden = torch.tensor([[[2.0, 3.0]]])
+        direction = torch.tensor([1.0, -1.0])
+        before = model.model.language_model.layers[0](hidden)
+        with activation_addition_input_hook(model, direction, 0, 0.5) as record:
+            during = model.model.language_model.layers[0](hidden)
+        after = model.model.language_model.layers[0](hidden)
+        torch.testing.assert_close(during, torch.tensor([[[5.0, 5.0]]]))
+        torch.testing.assert_close(before, after)
+        self.assertEqual(record["layer"], 0)
+
     def test_in_memory_weight_projection_supports_row_subspaces(self):
         from swift_abliteration.torch_ops import (
             project_embedding_rows_,
@@ -27,18 +57,12 @@ class LiveModelTests(unittest.TestCase):
         )
 
         basis = torch.tensor([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
-        output_weight = torch.tensor(
-            [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]
-        )
-        embedding = torch.tensor(
-            [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]
-        )
+        output_weight = torch.tensor([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
+        embedding = torch.tensor([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]])
         project_output_weight_(output_weight, basis, 1.0, column_chunk=1)
         project_embedding_rows_(embedding, basis, 1.0, row_chunk=1)
         torch.testing.assert_close(output_weight[:2], torch.zeros(2, 2))
-        torch.testing.assert_close(
-            embedding[:, :2], torch.zeros(2, 2)
-        )
+        torch.testing.assert_close(embedding[:, :2], torch.zeros(2, 2))
         torch.testing.assert_close(output_weight[2], torch.tensor([5.0, 6.0]))
         torch.testing.assert_close(embedding[:, 2], torch.tensor([3.0, 6.0]))
 
@@ -82,7 +106,9 @@ class LiveModelTests(unittest.TestCase):
             seed=1,
             model=ModelSpec("fake", "fake", "fake", "fake", 4, 8, 16, 6, 1, 1, 0),
             direction=DirectionSpec(0, 1, "plain", 2, 2, True, "disabled"),
-            edit=EditSpec(1.0, 0, 0, True, True, True, False, "float32", "bfloat16", True),
+            edit=EditSpec(
+                1.0, 0, 0, True, True, True, False, "float32", "bfloat16", True
+            ),
         )
         hooked = Root()
         edited = copy.deepcopy(hooked)
@@ -93,7 +119,9 @@ class LiveModelTests(unittest.TestCase):
         with weight_equivalent_ablation_hooks(hooked, cfg, direction) as record:
             hooked_outputs = (
                 hooked.model.language_model.embed_tokens(token_ids),
-                hooked.model.language_model.layers[0].linear_attn.out_proj(attention_input),
+                hooked.model.language_model.layers[0].linear_attn.out_proj(
+                    attention_input
+                ),
                 hooked.model.language_model.layers[0].mlp.down_proj(mlp_input),
             )
         apply_edit(edited, cfg, direction)
@@ -202,7 +230,9 @@ class LiveModelTests(unittest.TestCase):
             seed=1,
             model=ModelSpec("fake", "fake", "fake", "fake", 2, 2, 4, 2, 2, 2, 0),
             direction=DirectionSpec(0, 1, "plain", 2, 2, True, "disabled"),
-            edit=EditSpec(1.0, 0, 1, True, True, False, False, "float32", "bfloat16", True),
+            edit=EditSpec(
+                1.0, 0, 1, True, True, False, False, "float32", "bfloat16", True
+            ),
         )
         model = Root()
         for layer in model.model.language_model.layers:
@@ -261,7 +291,9 @@ class LiveModelTests(unittest.TestCase):
             seed=1,
             model=ModelSpec("fake", "fake", "fake", "fake", 3, 3, 4, 3, 1, 1, 0),
             direction=DirectionSpec(0, 2, "svd", 2, 2, True, "disabled"),
-            edit=EditSpec(1.0, 0, 0, True, True, False, False, "float32", "bfloat16", True),
+            edit=EditSpec(
+                1.0, 0, 0, True, True, False, False, "float32", "bfloat16", True
+            ),
         )
         model = Root()
         layer = model.model.language_model.layers[0]

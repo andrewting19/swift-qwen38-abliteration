@@ -31,6 +31,47 @@ def project_activation(tensor: Any, direction: Any, alpha: float = 1.0) -> Any:
     raise ValueError("Direction must be a vector or an orthonormal row matrix.")
 
 
+@contextmanager
+def activation_addition_input_hook(
+    model: Any,
+    direction: Any,
+    layer_index: int,
+    coefficient: float = 1.0,
+) -> Iterator[dict[str, Any]]:
+    """Temporarily add one direction to every token at one layer input."""
+    backbone = text_backbone(model)
+    index = int(layer_index)
+    if not 0 <= index < len(backbone.layers):
+        raise ValueError(f"Activation-addition layer is outside the model: {index}")
+    value = float(coefficient)
+    if not value:
+        raise ValueError("Activation-addition coefficient must be nonzero.")
+
+    def hook(_module: Any, args: tuple[Any, ...], kwargs: dict[str, Any]):
+        if args:
+            hidden = args[0]
+            vector = direction.to(device=hidden.device, dtype=hidden.dtype)
+            return (hidden + value * vector, *args[1:]), kwargs
+        if "hidden_states" not in kwargs:
+            raise RuntimeError("The layer input has no hidden-state tensor.")
+        updated = dict(kwargs)
+        hidden = updated["hidden_states"]
+        vector = direction.to(device=hidden.device, dtype=hidden.dtype)
+        updated["hidden_states"] = hidden + value * vector
+        return args, updated
+
+    handle = backbone.layers[index].register_forward_pre_hook(hook, with_kwargs=True)
+    try:
+        yield {
+            "type": "activation_addition_at_layer_input",
+            "layer": index,
+            "coefficient": value,
+            "checkpoint_saved": False,
+        }
+    finally:
+        handle.remove()
+
+
 def _replace_hidden(output: Any, direction: Any, alpha: float) -> Any:
     if isinstance(output, tuple):
         return (project_activation(output[0], direction, alpha), *output[1:])
@@ -107,7 +148,9 @@ def planned_runtime_writers(
             )
         if cfg.edit.include_mlp_output:
             targets.append(
-                RuntimeWriter("mtp.layers.0.mlp.down_proj", mtp_layer.mlp.down_proj, "linear")
+                RuntimeWriter(
+                    "mtp.layers.0.mlp.down_proj", mtp_layer.mlp.down_proj, "linear"
+                )
             )
     return targets
 
@@ -143,6 +186,7 @@ def weight_equivalent_ablation_hooks(
                     raise ValueError(
                         f"Embedding shape does not match direction: {target.name}"
                     )
+
                 def hook(
                     _module,
                     _inputs,
@@ -163,6 +207,7 @@ def weight_equivalent_ablation_hooks(
                 bias = getattr(target.module, "bias", None)
                 if bias is not None:
                     bias_modules.append(target.name)
+
                 def hook(
                     _module,
                     _inputs,
@@ -173,6 +218,7 @@ def weight_equivalent_ablation_hooks(
                     _bias=bias,
                 ):
                     return _project_linear_output(output, _direction, _alpha, _bias)
+
             handles.append(target.module.register_forward_hook(hook))
         yield {
             "type": "weight_equivalent_module_output_projection",
@@ -217,7 +263,9 @@ def layerwise_weight_equivalent_ablation_hooks(
         or not 0 <= index < len(backbone.layers)
     ]
     if invalid:
-        raise ValueError(f"Layerwise intervention layers are outside the edit: {invalid}")
+        raise ValueError(
+            f"Layerwise intervention layers are outside the edit: {invalid}"
+        )
 
     handles = []
     module_names: list[str] = []
@@ -232,13 +280,8 @@ def layerwise_weight_equivalent_ablation_hooks(
             bias_modules.append(name)
         handles.append(
             module.register_forward_hook(
-                lambda _module,
-                _inputs,
-                output,
-                *,
-                _direction=direction,
-                _bias=bias: _project_linear_output(
-                    output, _direction, value, _bias
+                lambda _module, _inputs, output, *, _direction=direction, _bias=bias: (
+                    _project_linear_output(output, _direction, value, _bias)
                 )
             )
         )
@@ -254,12 +297,8 @@ def layerwise_weight_equivalent_ablation_hooks(
                 raise ValueError("Embedding shape does not match its direction.")
             handles.append(
                 backbone.embed_tokens.register_forward_hook(
-                    lambda _module,
-                    _inputs,
-                    output,
-                    *,
-                    _direction=embedding_direction: project_activation(
-                        output, _direction, value
+                    lambda _module, _inputs, output, *, _direction=embedding_direction: (
+                        project_activation(output, _direction, value)
                     )
                 )
             )
