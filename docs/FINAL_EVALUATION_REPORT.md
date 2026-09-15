@@ -53,6 +53,8 @@ The plain matched direction shows the opposite failure. A direction can have goo
 
 The intervention equivalence check passed on 129 runtime residual writers. Batch-4 greedy generation matched batch-1 generation on the fixed pilot.
 
-All 79 files in the remote run directory were copied to the local run directory. Remote and local SHA-256 hashes matched for every file. The aggregate report is `runs/gpu/20260914-a100-51065040/metrics/open_weight_screen_summary.json`. It contains no raw prompt or response text.
+All 81 files in the remote run directory were copied to the local run directory. Remote and local SHA-256 hashes matched for every file before instance destruction. The local rental record was then updated with the final end time and cost. The aggregate report is `runs/gpu/20260914-a100-51065040/metrics/open_weight_screen_summary.json`. It contains no raw prompt or response text.
+
+The rental ran for 3.894 hours at $1.1022 per hour. Its estimated cost was $4.29. Vast instance `51065040` was destroyed after transfer verification.
 
 The first whole-transformer-layer-output experiment remains labeled as a stress test. It is not a valid proxy for the checkpoint weight edit and did not affect this decision.

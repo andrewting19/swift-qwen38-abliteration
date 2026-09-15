@@ -58,4 +58,4 @@ The corrected `matched_layer_38_plain` arm produced 256 empty decoded responses 
 
 The final-test split remains unused. The quick capability benchmarks were not run because no candidate passed the reversible refusal screen. No permanent checkpoint exists.
 
-All 79 files present in the remote run directory were copied locally. Their remote and local SHA-256 hashes match.
+All 81 files present in the remote run directory were copied locally. Their remote and local SHA-256 hashes matched before the instance was destroyed. The local rental record was then updated with the final end time and cost.
