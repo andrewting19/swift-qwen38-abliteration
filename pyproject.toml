@@ -13,10 +13,12 @@ dependencies = ["numpy>=2.0,<3"]
 gpu = [
   "accelerate==1.15.0",
   "datasets==5.0.1",
+  "causal-conv1d==1.7.0; platform_system == 'Linux'",
+  "flash-linear-attention==0.5.2; platform_system == 'Linux'",
   "pillow==12.3.0",
   "safetensors==0.8.0",
-  "torch==2.14.0",
-  "torchvision==0.29.0",
+  "torch==2.9.1",
+  "torchvision==0.24.1",
   "transformers[serving]==5.17.0",
 ]
 eval = [

@@ -91,7 +91,9 @@ Do not use the final test until one candidate and its settings are frozen.
 
 ## Execution order
 
-Stage 0 is complete. The next action is Stage 1.
+Stage 0, Stage 1, and Stage 2 are complete. The next action is the repeated Stage 3 live validation.
+
+Live status: Stage 1 and Stage 2 passed on Vast instance `51065040`, an A100 SXM4 80 GB rental at about $1.102/hour. The base checkpoint download completed. The first load found slow reference kernels, so capture was stopped before measurement. The environment now uses PyTorch 2.9.1 with CUDA 12.8, `causal-conv1d` 1.7.0, and `flash-linear-attention` 0.5.2. Stage 3 validation must pass again before capture restarts.
 
 ### Stage 0: Finish local controls
 
