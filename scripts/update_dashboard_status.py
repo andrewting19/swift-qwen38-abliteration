@@ -25,6 +25,15 @@ def utc_now() -> str:
     return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
+def parse_utc(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
 def deep_merge(base: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
     result = deepcopy(base)
     for key, value in overlay.items():
@@ -148,8 +157,27 @@ def refresh(status_path: Path, config: dict[str, Any], args: argparse.Namespace)
         arm = Path(path).parent.name
         arm_counts[arm] = arm_counts.get(arm, 0) + count
     candidate_started = any(arm != "base" and count > 0 for arm, count in arm_counts.items())
+    candidate_names = [item.get("name") for item in snapshot.get("direction_quality", {}).get("candidates", []) if item.get("name")]
+    arm_order = ["base", *candidate_names]
+    per_arm_expected = max(1, expected // max(len(arm_order), 1))
+    active_arm = next((arm for arm in arm_order if arm_counts.get(arm, 0) < per_arm_expected), None)
+    candidate_states = []
+    for item in snapshot.get("direction_quality", {}).get("candidates", []):
+        updated = dict(item)
+        name = str(item.get("name", ""))
+        count = arm_counts.get(name, 0)
+        updated["state"] = "done" if count >= per_arm_expected else "running" if name == active_arm else "queued"
+        candidate_states.append(updated)
+    if active_arm == "base":
+        screen_status = f"base arm · {arm_counts.get('base', 0)}/{per_arm_expected}"
+    elif active_arm:
+        screen_status = f"{active_arm} · {arm_counts.get(active_arm, 0)}/{per_arm_expected}"
+    else:
+        screen_status = "response generation complete"
+    now = utc_now()
     patch: dict[str, Any] = {
-        "updated_at": utc_now(),
+        "updated_at": now,
+        "direction_quality": {"status": screen_status, "candidates": candidate_states},
         "runtime": {
             "jsonl_line_counts": counts,
             "arm_output_counts": arm_counts,
@@ -166,10 +194,34 @@ def refresh(status_path: Path, config: dict[str, Any], args: argparse.Namespace)
         patch["credit"] = {"balance_usd": credit, "note": "Live Vast.ai credit read at last refresh"}
     if runtime.get("gpu"):
         patch["rental"] = {"gpu": runtime["gpu"], "gpu_memory_used_mib": runtime.get("memory_used_mib"), "gpu_utilization_percent": runtime.get("utilization_percent")}
+    started_at = parse_utc(snapshot.get("rental", {}).get("started_at"))
+    hourly_rate = snapshot.get("rental", {}).get("hourly_rate_usd")
+    if started_at and hourly_rate is not None:
+        elapsed_hours = max(0.0, (parse_utc(now) - started_at).total_seconds() / 3600)
+        patch.setdefault("rental", {}).update(
+            elapsed_hours=round(elapsed_hours, 3),
+            estimated_cost_usd=round(elapsed_hours * float(hourly_rate), 3),
+        )
     if runtime.get("process_active") is False and process_pattern and observed < expected:
         patch["error"] = "Screen process is not active before all expected output records were written."
     else:
         patch["error"] = None
+    if observed >= expected and runtime.get("process_active") is False:
+        patch["run"] = {"status": "screen complete"}
+        patch["progress"] = {
+            "phase": "offline_scoring",
+            "phase_label": "Offline scoring",
+            "phase_detail": "All reversible response records are complete. Scoring is ready.",
+            "label": "Reversible screen complete",
+            "percent": 90,
+            "steps": [
+                {"label": "Preflight", "state": "done"},
+                {"label": "GPU capture", "state": "done"},
+                {"label": "Direction analysis", "state": "done"},
+                {"label": "Reversible screen", "state": "done"},
+                {"label": "Final evaluation", "state": "active"},
+            ],
+        }
     merged = deep_merge(snapshot, patch)
     # These maps are complete snapshots. Do not retain keys from an older poll.
     merged["runtime"]["jsonl_line_counts"] = counts

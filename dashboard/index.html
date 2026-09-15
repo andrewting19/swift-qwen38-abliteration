@@ -87,7 +87,7 @@
       $('gpu').textContent = safe(rental.gpu);
       $('gpuHint').textContent = `${safe(rental.instance_id)} · ${safe(rental.provider, 'provider unknown')}`;
       $('rate').textContent = formatUsd(rental.hourly_rate_usd) + '/h';
-      $('rateHint').textContent = rental.started_at ? `started ${formatTime(rental.started_at)}` : 'start time unavailable';
+      $('rateHint').textContent = rental.started_at ? `started ${formatTime(rental.started_at)} · est. ${formatUsd(rental.estimated_cost_usd)}` : 'start time unavailable';
       $('credit').textContent = credit.balance_usd === null || credit.balance_usd === undefined ? 'Checking…' : formatUsd(credit.balance_usd);
       $('creditHint').textContent = safe(credit.note, 'Provider balance is not exposed in this snapshot');
       const pct = Math.max(0, Math.min(100, Number(progress.percent || 0)));
