@@ -355,6 +355,8 @@ def main() -> int:
     parser.add_argument("--maximum-added-safe-refusal", type=float, default=0.05)
     parser.add_argument("--sufficient-removal", type=float, default=0.75)
     parser.add_argument("--alpha", type=float, default=1.0)
+    parser.add_argument("--attention-alpha", type=float)
+    parser.add_argument("--mlp-alpha", type=float)
     parser.add_argument(
         "--target-layer",
         type=int,
@@ -375,6 +377,12 @@ def main() -> int:
         raise ValueError("Batch size and prompt limits must be positive.")
     if not 0.0 <= args.alpha <= 1.0:
         raise ValueError("Alpha must be between 0 and 1.")
+    for label, value in (
+        ("attention alpha", args.attention_alpha),
+        ("MLP alpha", args.mlp_alpha),
+    ):
+        if value is not None and not 0.0 <= value <= 1.0:
+            raise ValueError(f"{label} must be between 0 and 1.")
     target_layers = sorted(set(args.target_layer or []))
     args.output_dir.mkdir(parents=True, exist_ok=True)
     arms_dir = args.output_dir / "arms"
@@ -413,6 +421,8 @@ def main() -> int:
         "split_role": args.split_role,
         "requested_batch_size": args.batch_size,
         "alpha": args.alpha,
+        "attention_alpha": args.attention_alpha,
+        "mlp_alpha": args.mlp_alpha,
         "target_layers": target_layers or None,
     }
 
@@ -502,15 +512,20 @@ def main() -> int:
             print(json.dumps({"candidate": key, "status": "resumed"}, sort_keys=True))
             continue
         move_incomplete(raw_dir)
-        if target_layers:
+        if target_layers or args.attention_alpha is not None or args.mlp_alpha is not None:
+            active_layers = target_layers or list(
+                range(cfg.edit.first_layer, cfg.edit.last_layer + 1)
+            )
             intervention_context = layerwise_weight_equivalent_ablation_hooks(
                 model,
                 cfg,
-                {layer: candidates[key] for layer in target_layers},
+                {layer: candidates[key] for layer in active_layers},
                 args.alpha,
                 embedding_direction=(
                     candidates[key] if cfg.edit.include_embedding else None
                 ),
+                attention_alpha=args.attention_alpha,
+                mlp_alpha=args.mlp_alpha,
             )
         else:
             intervention_context = weight_equivalent_ablation_hooks(
@@ -627,6 +642,8 @@ def main() -> int:
                 "sufficient_removal": args.sufficient_removal,
             },
             "alpha": args.alpha,
+            "attention_alpha": args.attention_alpha,
+            "mlp_alpha": args.mlp_alpha,
             "target_layers": target_layers or None,
             "refusal_rules": {
                 "harmful_primary": "Arditi/JailbreakBench substring rule",

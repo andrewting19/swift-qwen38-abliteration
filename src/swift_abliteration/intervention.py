@@ -245,11 +245,24 @@ def layerwise_weight_equivalent_ablation_hooks(
     alpha: float = 1.0,
     *,
     embedding_direction: Any | None = None,
+    attention_alpha: float | None = None,
+    mlp_alpha: float | None = None,
+    embedding_alpha: float | None = None,
 ) -> Iterator[dict[str, Any]]:
     """Project each selected layer's writers along its assigned direction."""
     value = float(alpha)
     if not 0.0 <= value <= 1.0:
         raise ValueError("alpha must be between 0 and 1")
+    attention_value = value if attention_alpha is None else float(attention_alpha)
+    mlp_value = value if mlp_alpha is None else float(mlp_alpha)
+    embedding_value = value if embedding_alpha is None else float(embedding_alpha)
+    for label, component_value in (
+        ("attention_alpha", attention_value),
+        ("mlp_alpha", mlp_value),
+        ("embedding_alpha", embedding_value),
+    ):
+        if not 0.0 <= component_value <= 1.0:
+            raise ValueError(f"{label} must be between 0 and 1")
     backbone = text_backbone(model)
     assignments = {
         int(index): direction for index, direction in directions_by_layer.items()
@@ -271,7 +284,9 @@ def layerwise_weight_equivalent_ablation_hooks(
     module_names: list[str] = []
     bias_modules: list[str] = []
 
-    def register_linear(name: str, module: Any, direction: Any) -> None:
+    def register_linear(
+        name: str, module: Any, direction: Any, projection_alpha: float
+    ) -> None:
         hidden_size = int(direction.shape[-1])
         if module.weight.ndim != 2 or module.weight.shape[0] != hidden_size:
             raise ValueError(f"Writer shape does not match direction: {name}")
@@ -280,8 +295,8 @@ def layerwise_weight_equivalent_ablation_hooks(
             bias_modules.append(name)
         handles.append(
             module.register_forward_hook(
-                lambda _module, _inputs, output, *, _direction=direction, _bias=bias: (
-                    _project_linear_output(output, _direction, value, _bias)
+                lambda _module, _inputs, output, *, _direction=direction, _bias=bias, _alpha=projection_alpha: (
+                    _project_linear_output(output, _direction, _alpha, _bias)
                 )
             )
         )
@@ -298,7 +313,7 @@ def layerwise_weight_equivalent_ablation_hooks(
             handles.append(
                 backbone.embed_tokens.register_forward_hook(
                     lambda _module, _inputs, output, *, _direction=embedding_direction: (
-                        project_activation(output, _direction, value)
+                        project_activation(output, _direction, embedding_value)
                     )
                 )
             )
@@ -317,12 +332,14 @@ def layerwise_weight_equivalent_ablation_hooks(
                     f"model.language_model.layers.{index}.{label}",
                     module,
                     direction,
+                    attention_value,
                 )
             if cfg.edit.include_mlp_output:
                 register_linear(
                     f"model.language_model.layers.{index}.mlp.down_proj",
                     layer.mlp.down_proj,
                     direction,
+                    mlp_value,
                 )
         yield {
             "type": "layerwise_weight_equivalent_module_output_projection",
@@ -337,6 +354,9 @@ def layerwise_weight_equivalent_ablation_hooks(
             "embedding_included": embedding_direction is not None,
             "mtp_included": False,
             "alpha": value,
+            "attention_alpha": attention_value,
+            "mlp_alpha": mlp_value,
+            "embedding_alpha": embedding_value if embedding_direction is not None else None,
         }
     finally:
         for handle in handles:

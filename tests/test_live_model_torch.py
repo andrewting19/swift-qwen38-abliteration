@@ -313,14 +313,24 @@ class LiveModelTests(unittest.TestCase):
             1: torch.tensor([0.0, 1.0]),
         }
         with layerwise_weight_equivalent_ablation_hooks(
-            model, cfg, directions
+            model,
+            cfg,
+            directions,
+            attention_alpha=0.5,
+            mlp_alpha=0.25,
         ) as record:
             first = model.model.language_model.layers[0].linear_attn.out_proj(value)
             second = model.model.language_model.layers[1].linear_attn.out_proj(value)
-        torch.testing.assert_close(first, torch.tensor([[[0.0, 4.0]]]))
-        torch.testing.assert_close(second, torch.tensor([[[3.0, 0.0]]]))
+            first_mlp = model.model.language_model.layers[0].mlp.down_proj(value)
+            second_mlp = model.model.language_model.layers[1].mlp.down_proj(value)
+        torch.testing.assert_close(first, torch.tensor([[[1.5, 4.0]]]))
+        torch.testing.assert_close(second, torch.tensor([[[3.0, 2.0]]]))
+        torch.testing.assert_close(first_mlp, torch.tensor([[[2.25, 4.0]]]))
+        torch.testing.assert_close(second_mlp, torch.tensor([[[3.0, 3.0]]]))
         self.assertEqual(record["target_layers"], [0, 1])
         self.assertEqual(record["module_count"], 4)
+        self.assertEqual(record["attention_alpha"], 0.5)
+        self.assertEqual(record["mlp_alpha"], 0.25)
 
     def test_layerwise_weight_hooks_project_an_orthonormal_subspace(self):
         from swift_abliteration.intervention import (
