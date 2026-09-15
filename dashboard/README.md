@@ -16,6 +16,11 @@ The comparison page displays raw prompts and responses from the saved base and
 final-candidate runs. Harmful prompt text is collapsed by default. All content
 stays on the local machine.
 
+The capability page at `/capability` joins the fixed benchmark question files
+to the saved base and candidate answer records. Its default view shows items
+that changed from correct to incorrect. It also supports gained-answer and
+all-answer-change filters.
+
 Refresh the snapshot once, or keep it updated while a remote run is active:
 
 ```sh

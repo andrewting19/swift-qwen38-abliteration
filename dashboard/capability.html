@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Swift Qwen3.8 · Capability differences</title>
+  <style>
+    :root { color-scheme:dark; --bg:#090e1a; --panel:#111a2d; --panel2:#17233b; --line:#2a3858; --text:#edf3ff; --muted:#9baac5; --cyan:#6be6dc; --blue:#8eadff; --green:#76e39d; --amber:#f6cb70; --red:#ff91a0; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:radial-gradient(900px 520px at 75% -10%,#203a68 0%,transparent 65%),var(--bg); color:var(--text); font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,sans-serif; }
+    .shell { width:min(1280px,calc(100% - 30px)); margin:auto; padding:28px 0 60px; }
+    h1,h2,p { margin:0; } h1 { font-size:clamp(27px,4vw,41px); letter-spacing:-.035em; } h2 { font-size:16px; }
+    .eyebrow { color:var(--cyan); text-transform:uppercase; letter-spacing:.14em; font-size:11px; font-weight:800; margin-bottom:7px; }
+    .sub { color:var(--muted); margin-top:8px; max-width:850px; }
+    .toolbar { position:sticky; top:0; z-index:5; display:flex; flex-wrap:wrap; gap:10px; align-items:end; margin:20px 0 16px; padding:13px; background:#0e1728ee; backdrop-filter:blur(14px); border:1px solid var(--line); border-radius:14px; }
+    label { display:grid; gap:5px; color:var(--muted); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+    select,input { min-height:38px; border:1px solid var(--line); border-radius:9px; background:#0a1222; color:var(--text); padding:7px 10px; font:inherit; }
+    input { min-width:260px; } button { min-height:38px; border:1px solid #39726f; border-radius:9px; background:#123b3c; color:var(--cyan); padding:7px 13px; font-weight:750; cursor:pointer; }
+    .count { margin-left:auto; color:var(--muted); padding:8px 4px; }
+    .summary { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; margin-bottom:16px; }
+    .stat,.row { border:1px solid var(--line); border-radius:14px; background:linear-gradient(145deg,#16223aee,#0e1729ee); }
+    .stat { padding:14px; } .stat small { display:block; color:var(--muted); margin-bottom:6px; } .stat strong { font-size:20px; }
+    .rows { display:grid; gap:13px; } .row { padding:16px; }
+    .rowhead { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom:11px; }
+    .rowid { color:var(--blue); font:700 12px ui-monospace,SFMono-Regular,Menlo,monospace; margin-right:auto; }
+    .tag { border-radius:999px; padding:3px 8px; background:#27344f; color:var(--muted); font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
+    .tag.lost { background:#4a2029; color:var(--red); } .tag.gained { background:#173d2b; color:var(--green); } .tag.changed { background:#443519; color:var(--amber); }
+    .question { font-size:15px; font-weight:700; margin-bottom:11px; white-space:pre-wrap; }
+    .choices { display:grid; gap:6px; margin-bottom:14px; } .choice { color:#cdd7eb; padding:7px 9px; border:1px solid #24314e; border-radius:8px; background:#0d1526; } .choice.correct { border-color:#397052; color:var(--green); }
+    .answers { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; } .answer { border:1px solid var(--line); border-radius:10px; padding:10px; background:#0b1425; } .answer small { display:block; color:var(--muted); margin-bottom:4px; } .answer strong { font-size:17px; }
+    .error { border:1px solid #7e3440; background:#401b2466; color:#ffb2bc; border-radius:12px; padding:13px; }
+    .footer { color:var(--muted); text-align:center; margin-top:18px; font-size:11px; }
+    @media (max-width:900px) { .summary { grid-template-columns:1fr 1fr; } .answers { grid-template-columns:1fr; } .count { width:100%; margin-left:0; } }
+    @media (max-width:540px) { .shell { width:calc(100% - 18px); } .summary { grid-template-columns:1fr; } input { min-width:0; width:100%; } label { flex:1 1 100%; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="eyebrow">Swift Qwen3.8 · local capability review</div>
+    <h1>Capability answer differences</h1>
+    <p class="sub">Question-by-question comparison between the base model and the final reversible rank-6 candidate. The default filter shows only questions that the base answered correctly and the edited model answered incorrectly.</p>
+    <div class="toolbar">
+      <label>Benchmark<select id="suite"><option value="wmdp">WMDP-Cyber-256</option><option value="cybermetric">CyberMetric-80</option><option value="mmlu">MMLU-Pro-500</option></select></label>
+      <label>Show<select id="filter"><option value="lost">Base correct → candidate wrong</option><option value="gained">Base wrong → candidate correct</option><option value="changed">Any answer change</option><option value="all">All questions</option></select></label>
+      <label>Find in questions<input id="search" type="search" placeholder="Filter locally"></label>
+      <button id="reload" type="button">Reload</button>
+      <div id="count" class="count">Loading…</div>
+    </div>
+    <section id="summary" class="summary" aria-label="Benchmark summary"></section>
+    <section id="rows" class="rows"><div class="stat">Loading local artifacts…</div></section>
+    <div class="footer">All questions and results are loaded from fixed local artifacts.</div>
+  </main>
+  <script>
+    const $=id=>document.getElementById(id), state={rows:[]};
+    const labels='ABCDEFGHIJ';
+    async function getJson(url) { const r=await fetch(url,{cache:'no-store'}); if(!r.ok) throw new Error(`${url}: HTTP ${r.status}`); return r.json(); }
+    const byId=rows=>new Map(rows.map(row=>[String(row.id),row]));
+    function itemId(item,index) { return item.source_index ?? index; }
+    function choices(item) { return item.choices || Object.entries(item.answers).map(([label,text])=>({label,text})); }
+    function choiceRows(item) { const raw=choices(item); return raw.map((value,index)=>typeof value==='object'?value:{label:labels[index],text:value}); }
+    function stat(label,value) { const n=document.createElement('div'); n.className='stat'; const a=document.createElement('small'); a.textContent=label; const b=document.createElement('strong'); b.textContent=value; n.append(a,b); return n; }
+    function tag(text,tone) { const n=document.createElement('span'); n.className=`tag ${tone}`; n.textContent=text; return n; }
+    function answer(label,value) { const n=document.createElement('div'); n.className='answer'; const a=document.createElement('small'); a.textContent=label; const b=document.createElement('strong'); b.textContent=value ?? 'Invalid'; n.append(a,b); return n; }
+    function render() {
+      const f=$('filter').value, needle=$('search').value.trim().toLowerCase();
+      const rows=state.rows.filter(row=>{
+        if(f==='lost' && !(row.base.correct && !row.after.correct)) return false;
+        if(f==='gained' && !(!row.base.correct && row.after.correct)) return false;
+        if(f==='changed' && row.base.predicted===row.after.predicted) return false;
+        if(needle && !row.item.question.toLowerCase().includes(needle)) return false;
+        return true;
+      });
+      $('count').textContent=`Showing ${rows.length} of ${state.rows.length}`; const root=$('rows'); root.replaceChildren();
+      for(const row of rows) {
+        const card=document.createElement('article'); card.className='row'; const head=document.createElement('div'); head.className='rowhead'; const id=document.createElement('span'); id.className='rowid'; id.textContent=`Item ${row.id}`; head.append(id);
+        if(row.base.correct && !row.after.correct) head.append(tag('Lost','lost')); else if(!row.base.correct && row.after.correct) head.append(tag('Gained','gained')); else if(row.base.predicted!==row.after.predicted) head.append(tag('Answer changed','changed'));
+        const q=document.createElement('div'); q.className='question'; q.textContent=row.item.question; const opts=document.createElement('div'); opts.className='choices';
+        for(const option of choiceRows(row.item)) { const n=document.createElement('div'); n.className=`choice${option.label===row.base.target?' correct':''}`; n.textContent=`${option.label}. ${option.text}`; opts.append(n); }
+        const answers=document.createElement('div'); answers.className='answers'; answers.append(answer('Correct answer',row.base.target),answer('Before · base model',row.base.predicted),answer('After · rank-6 candidate',row.after.predicted)); card.append(head,q,opts,answers); root.append(card);
+      }
+      if(!rows.length) { const n=document.createElement('div'); n.className='stat'; n.textContent='No questions match this filter.'; root.append(n); }
+    }
+    async function load() {
+      const suite=$('suite').value, base=`/capability-data/${suite}`; $('rows').innerHTML='<div class="stat">Loading local artifacts…</div>'; $('count').textContent='Loading…';
+      try {
+        const [questions,before,after]=await Promise.all([getJson(`${base}/questions.json`),getJson(`${base}/base.json`),getJson(`${base}/after.json`)]); const bm=byId(before.results), am=byId(after.results);
+        state.rows=questions.questions.map((item,index)=>({item,id:itemId(item,index)})).filter(x=>bm.has(String(x.id))&&am.has(String(x.id))).map(x=>({...x,base:bm.get(String(x.id)),after:am.get(String(x.id))}));
+        const lost=state.rows.filter(x=>x.base.correct&&!x.after.correct).length, gained=state.rows.filter(x=>!x.base.correct&&x.after.correct).length, changed=state.rows.filter(x=>x.base.predicted!==x.after.predicted).length; const summary=$('summary'); summary.replaceChildren(stat('Questions',String(state.rows.length)),stat('Base accuracy',`${(before.accuracy*100).toFixed(2)}%`),stat('Candidate accuracy',`${(after.accuracy*100).toFixed(2)}%`),stat('Lost / gained',`${lost} / ${gained}`),stat('Answer changed',String(changed))); render();
+      } catch(error) { const root=$('rows'); root.replaceChildren(); const n=document.createElement('div'); n.className='error'; n.textContent=`Could not load capability comparison: ${error.message}`; root.append(n); $('count').textContent='Load failed'; }
+    }
+    $('suite').addEventListener('change',load); $('filter').addEventListener('change',render); $('search').addEventListener('input',render); $('reload').addEventListener('click',load); load();
+  </script>
+</body>
+</html>

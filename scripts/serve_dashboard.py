@@ -61,6 +61,30 @@ def comparison_files() -> dict[str, Path]:
     return files
 
 
+def capability_files() -> dict[str, Path]:
+    """Return the fixed route allowlist for capability item review."""
+    capability_run = FINAL_RUN / "capability-r123456"
+    mmlu_run = FINAL_RUN / "capability-r123456-mmlu"
+    return {
+        "/capability-data/wmdp/questions.json": ROOT
+        / "benchmarks/data/WMDP-Cyber-256.json",
+        "/capability-data/wmdp/base.json": capability_run
+        / "base_wmdp_cyber.json",
+        "/capability-data/wmdp/after.json": capability_run
+        / "candidate_wmdp_cyber.json",
+        "/capability-data/cybermetric/questions.json": ROOT
+        / "benchmarks/data/CyberMetric-80-v1.json",
+        "/capability-data/cybermetric/base.json": capability_run
+        / "base_cybermetric.json",
+        "/capability-data/cybermetric/after.json": capability_run
+        / "candidate_cybermetric.json",
+        "/capability-data/mmlu/questions.json": FINAL_RUN / "mmlu-pro-500.json",
+        "/capability-data/mmlu/base.json": mmlu_run / "base_mmlu_pro_500.json",
+        "/capability-data/mmlu/after.json": mmlu_run
+        / "candidate_mmlu_pro_500.json",
+    }
+
+
 class DashboardHandler(http.server.BaseHTTPRequestHandler):
     """Serve an explicit allowlist so other repository data is not web-accessible."""
 
@@ -68,6 +92,8 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
     status_path: Path
     comparison_path: Path
     comparison_data: dict[str, Path]
+    capability_path: Path
+    capability_data: dict[str, Path]
 
     def do_HEAD(self) -> None:
         self._serve(send_body=False)
@@ -83,11 +109,17 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
         elif request_path in {"/compare", "/compare/", "/comparison.html"}:
             path = self.comparison_path
             cache_control = "no-cache"
+        elif request_path in {"/capability", "/capability/", "/capability.html"}:
+            path = self.capability_path
+            cache_control = "no-cache"
         elif request_path == "/status.json":
             path = self.status_path
             cache_control = "no-store"
         elif request_path in self.comparison_data:
             path = self.comparison_data[request_path]
+            cache_control = "no-store"
+        elif request_path in self.capability_data:
+            path = self.capability_data[request_path]
             cache_control = "no-store"
         else:
             self.send_error(http.HTTPStatus.NOT_FOUND)
@@ -124,6 +156,8 @@ def main() -> None:
             "status_path": args.status.resolve(),
             "comparison_path": ROOT / "dashboard/comparison.html",
             "comparison_data": comparison_files(),
+            "capability_path": ROOT / "dashboard/capability.html",
+            "capability_data": capability_files(),
         },
     )
     server = http.server.ThreadingHTTPServer((args.host, args.port), handler)
