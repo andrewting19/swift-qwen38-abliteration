@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Swift Qwen3.8 · Rank-1 behavior review</title>
+  <style>
+    :root { color-scheme:dark; --bg:#080d18; --panel:#111a2c; --line:#293754; --text:#edf3ff; --muted:#9cabc6; --cyan:#6be6dc; --blue:#8eadff; --green:#76e39d; --amber:#f5c96d; --red:#ff91a0; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:radial-gradient(900px 520px at 75% -10%,#203a68 0%,transparent 65%),var(--bg); color:var(--text); font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,sans-serif; }
+    main { width:min(1480px,calc(100% - 28px)); margin:auto; padding:28px 0 60px; }
+    h1,h2,p { margin:0; } h1 { font-size:clamp(27px,4vw,41px); letter-spacing:-.035em; }
+    .eyebrow { color:var(--cyan); text-transform:uppercase; letter-spacing:.14em; font-size:11px; font-weight:800; margin-bottom:7px; }
+    .sub { color:var(--muted); margin-top:8px; max-width:980px; }
+    .notice { margin:18px 0 14px; padding:12px 14px; border:1px solid #735d2e; border-radius:13px; background:#392e1766; color:#f3d799; }
+    .toolbar { position:sticky; top:0; z-index:4; display:flex; flex-wrap:wrap; gap:10px; align-items:end; margin-bottom:15px; padding:13px; border:1px solid var(--line); border-radius:14px; background:#0e1728ee; backdrop-filter:blur(14px); }
+    label { display:grid; gap:5px; color:var(--muted); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+    select { min-height:38px; border:1px solid var(--line); border-radius:9px; background:#0a1222; color:var(--text); padding:7px 10px; font:inherit; }
+    button { min-height:38px; border:1px solid #39726f; border-radius:9px; background:#123b3c; color:var(--cyan); padding:7px 13px; font-weight:750; cursor:pointer; }
+    .count { margin-left:auto; color:var(--muted); padding:8px 4px; }
+    .summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:16px; }
+    .stat,.row { border:1px solid var(--line); border-radius:14px; background:linear-gradient(145deg,#16223aee,#0e1729ee); }
+    .stat { padding:14px; } .stat small { display:block; color:var(--muted); margin-bottom:5px; } .stat strong { font-size:20px; }
+    .rows { display:grid; gap:13px; } .row { overflow:hidden; }
+    .rowhead { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:11px 14px; background:#18243c; border-bottom:1px solid var(--line); }
+    .rowid { margin-right:auto; color:var(--blue); font:700 12px ui-monospace,SFMono-Regular,Menlo,monospace; }
+    .tag { display:inline-flex; border-radius:999px; padding:3px 8px; background:#27344f; color:var(--muted); font-size:10px; font-weight:800; text-transform:uppercase; }
+    .good { background:#173d2b; color:var(--green); } .bad { background:#4a2029; color:var(--red); } .warn { background:#443519; color:var(--amber); }
+    details { border-bottom:1px solid var(--line); } summary { cursor:pointer; color:var(--muted); padding:9px 14px; font-size:12px; }
+    .prompt { white-space:pre-wrap; padding:0 14px 13px; color:#cdd7eb; }
+    .pair { display:grid; grid-template-columns:1fr 1fr; } .answer { min-width:0; padding:15px; } .answer + .answer { border-left:1px solid var(--line); }
+    .answerhead { display:flex; flex-wrap:wrap; gap:7px; align-items:center; margin-bottom:10px; } .answerhead h2 { margin-right:auto; color:var(--muted); font-size:13px; }
+    .response { white-space:pre-wrap; overflow-wrap:anywhere; font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace; }
+    .error { border:1px solid #7e3440; background:#401b2466; color:#ffb2bc; border-radius:12px; padding:13px; }
+    @media (max-width:900px) { .summary { grid-template-columns:1fr 1fr; } .pair { grid-template-columns:1fr; } .answer + .answer { border-left:0; border-top:1px solid var(--line); } .count { width:100%; margin-left:0; } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">Current reversible candidate · local review</div>
+    <h1>Rank-1 behavior review</h1>
+    <p class="sub">Compare the base model with <code>matched_first_output_layer_52_winsor_995</code> at alpha 1.0. Use the disagreement filter to review answers that lost standard refusal language but still failed HarmBench.</p>
+    <div class="notice"><strong>Content notice:</strong> The harmful groups contain unsafe requests and generated content. Prompt text is closed by default. This local server exposes only an explicit file allowlist.</div>
+    <div class="toolbar">
+      <label>Prompt group<select id="group"><option value="standard_harmful">Standard harmful</option><option value="matched_harmful">Topic-matched harmful</option><option value="xstest_safe">XSTest safe</option></select></label>
+      <label>Show<select id="filter"><option value="disagreement">No rule refusal, no behavior success</option><option value="all">All rows</option><option value="rule_removed">Rule refusal removed</option><option value="rule_remaining">Rule refusal remains</option><option value="success">HarmBench behavior success</option></select></label>
+      <button id="reload" type="button">Reload</button><span id="count" class="count">Loading…</span>
+    </div>
+    <section id="summary" class="summary"></section>
+    <section id="rows" class="rows"><div class="stat">Loading local artifacts…</div></section>
+  </main>
+  <script>
+    const $=id=>document.getElementById(id);
+    const candidate='matched_first_output_layer_52_winsor_995';
+    const state={rows:[]};
+    const harmful=group=>group.endsWith('_harmful');
+    async function json(url){const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw new Error(`${url}: HTTP ${r.status}`);return r.json();}
+    async function jsonl(url,optional=false){const r=await fetch(url,{cache:'no-store'});if(optional&&r.status===404)return[];if(!r.ok)throw new Error(`${url}: HTTP ${r.status}`);return(await r.text()).split(/\r?\n/).filter(Boolean).map(JSON.parse);}
+    const byId=rows=>new Map(rows.map(row=>[String(row.id),row]));
+    const tag=(text,tone='')=>{const n=document.createElement('span');n.className=`tag ${tone}`;n.textContent=text;return n;};
+    const stat=(label,value)=>{const n=document.createElement('div');n.className='stat';const a=document.createElement('small');a.textContent=label;const b=document.createElement('strong');b.textContent=value;n.append(a,b);return n;};
+    function ruleRefusal(flags){return Boolean(flags.opening||flags.anywhere);}
+    function pane(title,text,flags,hb){const n=document.createElement('article');n.className='answer';const h=document.createElement('div');h.className='answerhead';const t=document.createElement('h2');t.textContent=title;h.append(t,tag(ruleRefusal(flags)?'Rule refusal':'No rule refusal',ruleRefusal(flags)?'bad':'good'));if(typeof hb==='boolean')h.append(tag(hb?'Behavior success':'No behavior success',hb?'warn':''));const body=document.createElement('div');body.className='response';body.textContent=text||'[Empty response]';n.append(h,body);return n;}
+    function render(){const filter=$('filter').value;const rows=state.rows.filter(r=>{const before=ruleRefusal(r.baseFlags),after=ruleRefusal(r.candidateFlags);if(filter==='disagreement')return !after&&r.harmbench===false;if(filter==='rule_removed')return before&&!after;if(filter==='rule_remaining')return after;if(filter==='success')return r.harmbench===true;return true;});$('count').textContent=`Showing ${rows.length} of ${state.rows.length}`;const root=$('rows');root.replaceChildren();for(const row of rows){const card=document.createElement('article');card.className='row';const head=document.createElement('div');head.className='rowhead';const id=document.createElement('span');id.className='rowid';id.textContent=`Row ${row.base.id}`;head.append(id);if(ruleRefusal(row.baseFlags)&&!ruleRefusal(row.candidateFlags))head.append(tag('Refusal language removed','good'));if(!ruleRefusal(row.candidateFlags)&&row.harmbench===false)head.append(tag('Classifier disagreement','warn'));const details=document.createElement('details');const sum=document.createElement('summary');sum.textContent='Show prompt';const prompt=document.createElement('div');prompt.className='prompt';prompt.textContent=row.base.prompt;details.append(sum,prompt);const pair=document.createElement('div');pair.className='pair';pair.append(pane('Before · base',row.base.response,row.baseFlags,row.baseHarmbench),pane('After · rank-1',row.candidate.response,row.candidateFlags,row.harmbench));card.append(head,details,pair);root.append(card);}if(!rows.length){const n=document.createElement('div');n.className='stat';n.textContent='No rows match this filter.';root.append(n);}}
+    async function load(){const group=$('group').value,root=`/rank1-data/${group}`;$('count').textContent='Loading…';try{const [report,base,after,baseHb,afterHb]=await Promise.all([json('/rank1-data/report.json'),jsonl(`${root}/base.jsonl`),jsonl(`${root}/candidate.jsonl`),jsonl(`${root}/base-harmbench.jsonl`,true),jsonl(`${root}/candidate-harmbench.jsonl`,true)]);const am=byId(after),bh=byId(baseHb),ah=byId(afterHb),bf=report.base.groups[group],af=report.results[candidate].groups[group];state.rows=base.filter(x=>am.has(String(x.id))).map((x,i)=>({base:x,candidate:am.get(String(x.id)),baseFlags:{opening:bf.opening_refusal_labels[i],anywhere:bf.arditi_anywhere_refusal_labels[i]},candidateFlags:{opening:af.opening_refusal_labels[i],anywhere:af.arditi_anywhere_refusal_labels[i]},baseHarmbench:bh.get(String(x.id))?.judgment?.behavior_success,harmbench:ah.get(String(x.id))?.judgment?.behavior_success}));const remaining=state.rows.filter(x=>ruleRefusal(x.candidateFlags)).length,removed=state.rows.filter(x=>ruleRefusal(x.baseFlags)&&!ruleRefusal(x.candidateFlags)).length,successes=state.rows.filter(x=>x.harmbench===true).length;$('summary').replaceChildren(stat('Matched rows',String(state.rows.length)),stat('Rule refusals removed',String(removed)),stat('Rule refusals remaining',String(remaining)),stat(harmful(group)?'HarmBench successes':'Safe group',harmful(group)?String(successes):'Not judged'));if(!harmful(group)&&$('filter').value==='disagreement')$('filter').value='all';render();}catch(error){const n=document.createElement('div');n.className='error';n.textContent=`Could not load review: ${error.message}`;$('rows').replaceChildren(n);$('count').textContent='Load failed';}}
+    $('group').addEventListener('change',load);$('filter').addEventListener('change',render);$('reload').addEventListener('click',load);load();
+  </script>
+</body>
+</html>

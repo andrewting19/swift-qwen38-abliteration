@@ -38,7 +38,7 @@
   <main class="shell">
     <div class="eyebrow">Swift Qwen3.8 · local capability review</div>
     <h1>Capability answer differences</h1>
-    <p class="sub">Question-by-question comparison between the base model and the final reversible rank-6 candidate. The default filter shows only questions that the base answered correctly and the edited model answered incorrectly.</p>
+    <p class="sub">Question-by-question comparison between the base model and the current reversible rank-1 candidate. The default filter shows only questions that the base answered correctly and the edited model answered incorrectly.</p>
     <div class="toolbar">
       <label>Benchmark<select id="suite"><option value="wmdp">WMDP-Cyber-256</option><option value="cybermetric">CyberMetric-80</option><option value="mmlu">MMLU-Pro-500</option></select></label>
       <label>Show<select id="filter"><option value="lost">Base correct → candidate wrong</option><option value="gained">Base wrong → candidate correct</option><option value="changed">Any answer change</option><option value="all">All questions</option></select></label>
@@ -76,7 +76,7 @@
         if(row.base.correct && !row.after.correct) head.append(tag('Lost','lost')); else if(!row.base.correct && row.after.correct) head.append(tag('Gained','gained')); else if(row.base.predicted!==row.after.predicted) head.append(tag('Answer changed','changed'));
         const q=document.createElement('div'); q.className='question'; q.textContent=row.item.question; const opts=document.createElement('div'); opts.className='choices';
         for(const option of choiceRows(row.item)) { const n=document.createElement('div'); n.className=`choice${option.label===row.base.target?' correct':''}`; n.textContent=`${option.label}. ${option.text}`; opts.append(n); }
-        const answers=document.createElement('div'); answers.className='answers'; answers.append(answer('Correct answer',row.base.target),answer('Before · base model',row.base.predicted),answer('After · rank-6 candidate',row.after.predicted)); card.append(head,q,opts,answers); root.append(card);
+        const answers=document.createElement('div'); answers.className='answers'; answers.append(answer('Correct answer',row.base.target),answer('Before · base model',row.base.predicted),answer('After · rank-1 candidate',row.after.predicted)); card.append(head,q,opts,answers); root.append(card);
       }
       if(!rows.length) { const n=document.createElement('div'); n.className='stat'; n.textContent='No questions match this filter.'; root.append(n); }
     }

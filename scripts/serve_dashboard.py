@@ -16,6 +16,10 @@ DEFAULT_STATUS = ROOT / "runs/gpu/20260914-a100-51065040/status.json"
 BASE_RUN = ROOT / "runs/gpu/20260914-a100-51065040"
 FINAL_RUN = ROOT / "runs/gpu/20260915-a100-51081304"
 SAFE_KL_REVIEW = ROOT / "runs/local-safe-kl-review"
+RANK1_RUN = (
+    ROOT
+    / "runs/gpu/20260915-generation-search-51135396/alpha1_0-validation"
+)
 
 
 def comparison_files() -> dict[str, Path]:
@@ -64,24 +68,23 @@ def comparison_files() -> dict[str, Path]:
 
 def capability_files() -> dict[str, Path]:
     """Return the fixed route allowlist for capability item review."""
-    capability_run = FINAL_RUN / "capability-r123456"
-    mmlu_run = FINAL_RUN / "capability-r123456-mmlu"
+    capability_run = RANK1_RUN / "capability"
     return {
         "/capability-data/wmdp/questions.json": ROOT
         / "benchmarks/data/WMDP-Cyber-256.json",
         "/capability-data/wmdp/base.json": capability_run
-        / "base_wmdp_cyber.json",
+        / "base_wmdp_cyber_256.json",
         "/capability-data/wmdp/after.json": capability_run
-        / "candidate_wmdp_cyber.json",
+        / "candidate_wmdp_cyber_256.json",
         "/capability-data/cybermetric/questions.json": ROOT
         / "benchmarks/data/CyberMetric-80-v1.json",
         "/capability-data/cybermetric/base.json": capability_run
-        / "base_cybermetric.json",
+        / "base_cybermetric_80.json",
         "/capability-data/cybermetric/after.json": capability_run
-        / "candidate_cybermetric.json",
+        / "candidate_cybermetric_80.json",
         "/capability-data/mmlu/questions.json": FINAL_RUN / "mmlu-pro-500.json",
-        "/capability-data/mmlu/base.json": mmlu_run / "base_mmlu_pro_500.json",
-        "/capability-data/mmlu/after.json": mmlu_run
+        "/capability-data/mmlu/base.json": capability_run / "base_mmlu_pro_500.json",
+        "/capability-data/mmlu/after.json": capability_run
         / "candidate_mmlu_pro_500.json",
     }
 
@@ -95,6 +98,29 @@ def safe_kl_files() -> dict[str, Path]:
     }
 
 
+def rank1_review_files() -> dict[str, Path]:
+    """Return current rank-1 validation files for local review."""
+    candidate = "matched_first_output_layer_52_winsor_995"
+    files: dict[str, Path] = {
+        "/rank1-data/report.json": RANK1_RUN / "validation_report.json",
+    }
+    for group in ("standard_harmful", "matched_harmful", "xstest_safe"):
+        files[f"/rank1-data/{group}/base.jsonl"] = (
+            RANK1_RUN / "raw" / "base" / f"{group}.jsonl"
+        )
+        files[f"/rank1-data/{group}/candidate.jsonl"] = (
+            RANK1_RUN / "raw" / candidate / f"{group}.jsonl"
+        )
+        if group.endswith("_harmful"):
+            files[f"/rank1-data/{group}/base-harmbench.jsonl"] = (
+                RANK1_RUN / "harmbench" / "base" / f"{group}.jsonl"
+            )
+            files[f"/rank1-data/{group}/candidate-harmbench.jsonl"] = (
+                RANK1_RUN / "harmbench" / candidate / f"{group}.jsonl"
+            )
+    return files
+
+
 class DashboardHandler(http.server.BaseHTTPRequestHandler):
     """Serve an explicit allowlist so other repository data is not web-accessible."""
 
@@ -106,6 +132,8 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
     capability_data: dict[str, Path]
     safe_kl_path: Path
     safe_kl_data: dict[str, Path]
+    rank1_review_path: Path
+    rank1_review_data: dict[str, Path]
 
     def do_HEAD(self) -> None:
         self._serve(send_body=False)
@@ -127,6 +155,9 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
         elif request_path in {"/safe-kl", "/safe-kl/", "/safe-kl.html"}:
             path = self.safe_kl_path
             cache_control = "no-cache"
+        elif request_path in {"/rank1", "/rank1/", "/rank1-review.html"}:
+            path = self.rank1_review_path
+            cache_control = "no-cache"
         elif request_path == "/status.json":
             path = self.status_path
             cache_control = "no-store"
@@ -138,6 +169,9 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             cache_control = "no-store"
         elif request_path in self.safe_kl_data:
             path = self.safe_kl_data[request_path]
+            cache_control = "no-store"
+        elif request_path in self.rank1_review_data:
+            path = self.rank1_review_data[request_path]
             cache_control = "no-store"
         else:
             self.send_error(http.HTTPStatus.NOT_FOUND)
@@ -178,6 +212,8 @@ def main() -> None:
             "capability_data": capability_files(),
             "safe_kl_path": ROOT / "dashboard/safe-kl.html",
             "safe_kl_data": safe_kl_files(),
+            "rank1_review_path": ROOT / "dashboard/rank1-review.html",
+            "rank1_review_data": rank1_review_files(),
         },
     )
     server = http.server.ThreadingHTTPServer((args.host, args.port), handler)
