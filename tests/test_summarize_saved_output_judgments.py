@@ -69,3 +69,32 @@ def test_summary_ranks_candidate_against_sibling_base(tmp_path: Path) -> None:
     assert candidate["minimum_harmbench_success_rate"] == 0.5
     assert candidate["minimum_substantive_rate"] == 1.0
     assert candidate["total_broken_count"] == 0
+
+
+def test_absolute_summary_accepts_legacy_aliases_without_raw_base(
+    tmp_path: Path,
+) -> None:
+    manifest = {
+        "items": [
+            {"key": "candidate-key", "aliases": ["legacy-pilot/rank6"]},
+        ]
+    }
+    input_manifest = tmp_path / "input.json"
+    input_manifest.write_text(json.dumps(manifest))
+    write_judges(tmp_path, "candidate-key", [True, False], "PARTIAL")
+    (tmp_path / "harmbench/manifest.json").write_text("{}")
+    (tmp_path / "mode/manifest.json").write_text("{}")
+
+    report = MODULE.summarize(
+        input_manifest,
+        tmp_path / "harmbench",
+        tmp_path / "mode",
+        absolute=True,
+    )
+
+    candidate = report["ranked_candidates"][0]
+    assert candidate["alias"] == "legacy-pilot/rank6"
+    assert candidate["minimum_harmbench_success_rate"] == 0.5
+    assert candidate["minimum_substantive_rate"] == 1.0
+    assert "minimum_harmbench_rate_change" not in candidate
+    assert report["ranking_mode"] == "absolute"

@@ -71,6 +71,8 @@ def summarize(
     input_manifest: Path,
     harmbench_root: Path,
     response_mode_root: Path | None,
+    *,
+    absolute: bool = False,
 ) -> dict:
     manifest = json.loads(input_manifest.read_text())
     item_metrics: dict[str, dict] = {}
@@ -96,32 +98,38 @@ def summarize(
 
     candidates = []
     for alias, key in sorted(alias_to_key.items()):
-        screen, arm = screen_and_arm(alias)
+        if absolute:
+            arm = alias.rsplit("/", 1)[-1]
+            screen = alias.rsplit("/", 1)[0] if "/" in alias else ""
+        else:
+            screen, arm = screen_and_arm(alias)
         if arm.startswith("base"):
             continue
-        base_alias = f"{screen}/raw/base"
-        base_key = alias_to_key.get(base_alias)
-        if base_key is None:
+        base_alias = None if absolute else f"{screen}/raw/base"
+        base_key = None if base_alias is None else alias_to_key.get(base_alias)
+        if not absolute and base_key is None:
             raise ValueError(f"Missing sibling base arm for {alias}")
         groups = {}
         for group in GROUPS:
             current = item_metrics[key]["groups"][group]
-            base = item_metrics[base_key]["groups"][group]
-            joined = {
-                "harmbench": current["harmbench"],
-                "base_harmbench": base["harmbench"],
-                "harmbench_rate_change": current["harmbench"]["success_rate"]
-                - base["harmbench"]["success_rate"],
-            }
-            if response_mode_root is not None:
+            joined = {"harmbench": current["harmbench"]}
+            if base_key is not None:
+                base = item_metrics[base_key]["groups"][group]
                 joined.update(
-                    response_mode=current["response_mode"],
-                    base_response_mode=base["response_mode"],
-                    substantive_rate_change=current["response_mode"][
-                        "substantive_rate"
-                    ]
-                    - base["response_mode"]["substantive_rate"],
+                    base_harmbench=base["harmbench"],
+                    harmbench_rate_change=current["harmbench"]["success_rate"]
+                    - base["harmbench"]["success_rate"],
                 )
+            if response_mode_root is not None:
+                joined["response_mode"] = current["response_mode"]
+                if base_key is not None:
+                    joined.update(
+                        base_response_mode=base["response_mode"],
+                        substantive_rate_change=current["response_mode"][
+                            "substantive_rate"
+                        ]
+                        - base["response_mode"]["substantive_rate"],
+                    )
             groups[group] = joined
         candidate = {
             "alias": alias,
@@ -132,35 +140,47 @@ def summarize(
             "minimum_harmbench_success_rate": min(
                 groups[group]["harmbench"]["success_rate"] for group in GROUPS
             ),
-            "minimum_harmbench_rate_change": min(
-                groups[group]["harmbench_rate_change"] for group in GROUPS
-            ),
         }
+        if base_key is not None:
+            candidate["minimum_harmbench_rate_change"] = min(
+                groups[group]["harmbench_rate_change"] for group in GROUPS
+            )
         if response_mode_root is not None:
             candidate.update(
                 minimum_substantive_rate=min(
                     groups[group]["response_mode"]["substantive_rate"]
                     for group in GROUPS
                 ),
-                minimum_substantive_rate_change=min(
-                    groups[group]["substantive_rate_change"] for group in GROUPS
-                ),
                 total_broken_count=sum(
                     groups[group]["response_mode"]["broken_count"] for group in GROUPS
                 ),
             )
+            if base_key is not None:
+                candidate["minimum_substantive_rate_change"] = min(
+                    groups[group]["substantive_rate_change"] for group in GROUPS
+                )
         candidates.append(candidate)
 
-    candidates.sort(
-        key=lambda item: (
-            -item.get("minimum_substantive_rate_change", -1),
-            -item["minimum_harmbench_rate_change"],
-            -item.get("minimum_substantive_rate", -1),
-            -item["minimum_harmbench_success_rate"],
-            item.get("total_broken_count", 0),
-            item["alias"],
+    if absolute:
+        candidates.sort(
+            key=lambda item: (
+                -item.get("minimum_substantive_rate", -1),
+                -item["minimum_harmbench_success_rate"],
+                item.get("total_broken_count", 0),
+                item["alias"],
+            )
         )
-    )
+    else:
+        candidates.sort(
+            key=lambda item: (
+                -item.get("minimum_substantive_rate_change", -1),
+                -item["minimum_harmbench_rate_change"],
+                -item.get("minimum_substantive_rate", -1),
+                -item["minimum_harmbench_success_rate"],
+                item.get("total_broken_count", 0),
+                item["alias"],
+            )
+        )
     source_hashes = {
         "input_manifest_sha256": hashlib.sha256(input_manifest.read_bytes()).hexdigest(),
         "harmbench_manifest_sha256": hashlib.sha256(
@@ -178,6 +198,7 @@ def summarize(
         "openai_models_used": False,
         "candidate_alias_count": len(candidates),
         "unique_candidate_count": len(item_metrics),
+        "ranking_mode": "absolute" if absolute else "sibling_base_delta",
         "source_hashes": source_hashes,
         "ranked_candidates": candidates,
     }
@@ -188,10 +209,18 @@ def main() -> int:
     parser.add_argument("--input-manifest", type=Path, required=True)
     parser.add_argument("--harmbench-root", type=Path, required=True)
     parser.add_argument("--response-mode-root", type=Path)
+    parser.add_argument(
+        "--absolute",
+        action="store_true",
+        help="Rank absolute rates when runs do not have sibling raw/base arms.",
+    )
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     report = summarize(
-        args.input_manifest, args.harmbench_root, args.response_mode_root
+        args.input_manifest,
+        args.harmbench_root,
+        args.response_mode_root,
+        absolute=args.absolute,
     )
     write_json(args.output, report)
     print(
