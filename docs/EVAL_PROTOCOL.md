@@ -34,6 +34,8 @@ Use reversible module-output projection to screen every direction candidate on t
 
 For each bias-free residual writer, projecting its module output is mathematically equivalent to left-projecting its weight matrix. If a module has a bias, project only the weight-produced part and add the unchanged bias back. The Transformers generation path does not execute the checkpoint-only MTP module, so the reversible runtime screen excludes MTP and records this fact. The permanent editor can still change the MTP weights later.
 
+For a single candidate arm, the preferred fast path applies the same projection directly to the loaded model weights in memory. The process does not save a checkpoint, and the base checkpoint on disk remains unchanged. Require exactly one candidate per model load. A fixed validation pilot must prove that batch-4 greedy generation exactly matches batch-1 generation before batch-4 is used for the screen.
+
 Earlier transformer-layer-output hooks projected the direction from the complete residual state after every layer. This was not weight-equivalent. Preserve their completed results only as a whole-residual stress test. Do not use them to select or reject a checkpoint weight edit.
 
 - 500 fixed MMLU-Pro examples.

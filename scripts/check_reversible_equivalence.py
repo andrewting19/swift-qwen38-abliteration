@@ -7,6 +7,7 @@ from pathlib import Path
 
 from swift_abliteration.config import load_config
 from swift_abliteration.gpu_support import (
+    read_prompt_jsonl,
     require_acknowledgement,
     require_large_gpu,
     sha256_file,
@@ -18,11 +19,44 @@ from swift_abliteration.intervention import (
     weight_equivalent_ablation_hooks,
 )
 from swift_abliteration.live_model import (
+    apply_runtime_edit,
     mtp_root,
     render_prompt,
     text_backbone,
     validate_live_model,
 )
+
+
+def generate_texts(model, tokenizer, prompts, batch_size, max_new_tokens):
+    import torch
+
+    if tokenizer.pad_token_id is None:
+        raise RuntimeError("Batch equivalence requires a tokenizer pad token.")
+    device = text_backbone(model).embed_tokens.weight.device
+    previous_padding_side = tokenizer.padding_side
+    tokenizer.padding_side = "left"
+    results = []
+    try:
+        for start in range(0, len(prompts), batch_size):
+            prompt_batch = prompts[start : start + batch_size]
+            rendered = [
+                render_prompt(tokenizer, prompt, "You are a helpful assistant.")
+                for prompt in prompt_batch
+            ]
+            batch = tokenizer(rendered, return_tensors="pt", padding=True)
+            batch = {name: value.to(device) for name, value in batch.items()}
+            with torch.inference_mode():
+                generated = model.generate(
+                    **batch, do_sample=False, max_new_tokens=max_new_tokens
+                )
+            input_width = batch["input_ids"].shape[1]
+            results.extend(
+                tokenizer.decode(row[input_width:], skip_special_tokens=True)
+                for row in generated
+            )
+    finally:
+        tokenizer.padding_side = previous_padding_side
+    return results
 
 
 def projected_output_weight(weight, direction, alpha):
@@ -56,6 +90,11 @@ def main() -> int:
     parser.add_argument("--direction-key", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--alpha", type=float, default=1.0)
+    parser.add_argument(
+        "--batch-check-prompts", default="data/prepared/evaluation_harmless.jsonl"
+    )
+    parser.add_argument("--batch-size", type=int, default=4)
+    parser.add_argument("--batch-check-max-new-tokens", type=int, default=32)
     parser.add_argument("--acknowledge", required=True)
     args = parser.parse_args()
     require_acknowledgement(args.acknowledge)
@@ -174,6 +213,35 @@ def main() -> int:
     embeddings_tied = bool(
         output_embedding is not None and output_embedding.weight is input_embedding.weight
     )
+    prompts, prompt_hash = read_prompt_jsonl(args.batch_check_prompts)
+    pilot_prompts = prompts[: args.batch_size]
+    runtime_edit = apply_runtime_edit(
+        model,
+        cfg,
+        direction,
+        args.alpha,
+        generation_uses_mtp=False,
+    )
+    tokenizer = getattr(processor, "tokenizer", processor)
+    sequential = generate_texts(
+        model,
+        tokenizer,
+        pilot_prompts,
+        batch_size=1,
+        max_new_tokens=args.batch_check_max_new_tokens,
+    )
+    batched = generate_texts(
+        model,
+        tokenizer,
+        pilot_prompts,
+        batch_size=args.batch_size,
+        max_new_tokens=args.batch_check_max_new_tokens,
+    )
+    exact_matches = sum(left == right for left, right in zip(sequential, batched, strict=True))
+    if exact_matches != len(pilot_prompts):
+        raise RuntimeError(
+            f"Batch equivalence failed: {exact_matches}/{len(pilot_prompts)} exact matches."
+        )
     result = {
         "status": "passed",
         "config": args.config,
@@ -185,6 +253,16 @@ def main() -> int:
         "input_output_embeddings_tied": embeddings_tied,
         "mtp_available": mtp_available,
         "mtp_calls_during_one_token_generation": mtp_calls,
+        "runtime_edit": runtime_edit,
+        "batch_equivalence": {
+            "status": "passed",
+            "prompt_source": args.batch_check_prompts,
+            "prompt_source_sha256": prompt_hash,
+            "prompt_count": len(pilot_prompts),
+            "batch_size": args.batch_size,
+            "max_new_tokens": args.batch_check_max_new_tokens,
+            "exact_text_matches": exact_matches,
+        },
         "intervention": intervention,
         "sample_checks": checks,
         "system": system_record(),

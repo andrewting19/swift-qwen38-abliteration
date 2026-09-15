@@ -118,6 +118,73 @@ def apply_edit(model: Any, cfg: ExperimentConfig, direction: Any) -> list[str]:
     return edited
 
 
+def apply_runtime_edit(
+    model: Any,
+    cfg: ExperimentConfig,
+    direction: Any,
+    alpha: float | None = None,
+    *,
+    generation_uses_mtp: bool = False,
+) -> dict[str, Any]:
+    """Apply the configured edit in memory without requiring checkpoint-only MTP."""
+    value = cfg.edit.alpha if alpha is None else float(alpha)
+    if not 0.0 <= value <= 1.0:
+        raise ValueError("alpha must be between 0 and 1")
+    validate_live_model(model, cfg, require_mtp=False)
+    backbone = text_backbone(model)
+    edited: list[str] = []
+    if cfg.edit.include_embedding:
+        output_embeddings = model.get_output_embeddings()
+        if (
+            output_embeddings is not None
+            and output_embeddings.weight is backbone.embed_tokens.weight
+        ):
+            raise RuntimeError(
+                "The input embedding and output head are tied. The configured edit "
+                "does not include the output head."
+            )
+        project_embedding_rows_(backbone.embed_tokens.weight, direction, value)
+        edited.append("model.language_model.embed_tokens.weight")
+    for index in range(cfg.edit.first_layer, cfg.edit.last_layer + 1):
+        layer = backbone.layers[index]
+        if cfg.edit.include_attention_output:
+            if hasattr(layer, "linear_attn"):
+                module = layer.linear_attn.out_proj
+                label = "linear_attn.out_proj"
+            else:
+                module = layer.self_attn.o_proj
+                label = "self_attn.o_proj"
+            project_output_weight_(module.weight, direction, value)
+            edited.append(f"model.language_model.layers.{index}.{label}.weight")
+        if cfg.edit.include_mlp_output:
+            project_output_weight_(layer.mlp.down_proj.weight, direction, value)
+            edited.append(f"model.language_model.layers.{index}.mlp.down_proj.weight")
+    if cfg.edit.include_mtp and generation_uses_mtp:
+        mtp_layer = mtp_root(model).layers[0]
+        if cfg.edit.include_attention_output:
+            project_output_weight_(
+                mtp_layer.self_attn.o_proj.weight, direction, value
+            )
+            edited.append("mtp.layers.0.self_attn.o_proj.weight")
+        if cfg.edit.include_mlp_output:
+            project_output_weight_(
+                mtp_layer.mlp.down_proj.weight, direction, value
+            )
+            edited.append("mtp.layers.0.mlp.down_proj.weight")
+    return {
+        "type": "in_memory_weight_projection",
+        "edited_tensor_count": len(edited),
+        "edited_tensors": edited,
+        "embedding_included": cfg.edit.include_embedding,
+        "mtp_included": bool(cfg.edit.include_mtp and generation_uses_mtp),
+        "mtp_exclusion_reason": None
+        if not cfg.edit.include_mtp or generation_uses_mtp
+        else "The active Transformers generation path does not execute MTP.",
+        "alpha": value,
+        "checkpoint_saved": False,
+    }
+
+
 def render_prompt(tokenizer: Any, prompt: str, system_prompt: str | None = None) -> str:
     messages = []
     if system_prompt:

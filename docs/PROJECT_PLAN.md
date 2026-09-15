@@ -64,7 +64,7 @@ Measure:
 - Coherence.
 - Severe repetition and invalid output.
 
-For bias-free linear modules, this intervention is mathematically equivalent to the planned weight projection. Verify numerical equivalence before screening. Exclude checkpoint-only MTP from the runtime screen because the active Transformers generation path does not use it.
+For bias-free linear modules, this intervention is mathematically equivalent to the planned weight projection. Verify numerical equivalence before screening. For a single-candidate arm, apply the same edit directly to the loaded weights in memory and save no checkpoint. Use batch-4 generation only after a batch-1 versus batch-4 greedy-output equivalence pilot passes. Exclude checkpoint-only MTP from the runtime screen because the active Transformers generation path does not use it.
 
 ### Quick capability gate
 

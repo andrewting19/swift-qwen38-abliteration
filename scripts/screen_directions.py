@@ -18,6 +18,7 @@ from swift_abliteration.gpu_support import (
 )
 from swift_abliteration.intervention import weight_equivalent_ablation_hooks
 from swift_abliteration.live_model import (
+    apply_runtime_edit,
     capture_last_token_logits,
     render_prompt,
     text_backbone,
@@ -40,35 +41,59 @@ def direction_layer(key: str) -> int:
 
 
 def generate_group(
-    model, tokenizer, prompts, path: Path, max_new_tokens: int, system_prompt: str
+    model,
+    tokenizer,
+    prompts,
+    path: Path,
+    max_new_tokens: int,
+    system_prompt: str,
+    batch_size: int,
 ) -> str:
     import torch
 
     device = text_backbone(model).embed_tokens.weight.device
     digest = hashlib.sha256()
-    with path.open("w", encoding="utf-8") as handle:
-        for index, prompt in enumerate(prompts):
-            rendered = render_prompt(tokenizer, prompt, system_prompt)
-            batch = tokenizer([rendered], return_tensors="pt")
-            batch = {name: value.to(device) for name, value in batch.items()}
-            with torch.inference_mode():
-                generated = model.generate(
-                    **batch,
-                    do_sample=False,
-                    max_new_tokens=max_new_tokens,
-                )
-            new_tokens = generated[0, batch["input_ids"].shape[1] :]
-            response = tokenizer.decode(new_tokens, skip_special_tokens=True)
-            line = (
-                json.dumps(
-                    {"id": index, "prompt": prompt, "response": response},
-                    ensure_ascii=False,
-                    sort_keys=True,
-                )
-                + "\n"
-            )
-            handle.write(line)
-            digest.update(line.encode())
+    if batch_size <= 0:
+        raise ValueError("Batch size must be positive.")
+    previous_padding_side = tokenizer.padding_side
+    tokenizer.padding_side = "left"
+    try:
+        with path.open("w", encoding="utf-8") as handle:
+            for start in range(0, len(prompts), batch_size):
+                prompt_batch = prompts[start : start + batch_size]
+                rendered = [
+                    render_prompt(tokenizer, prompt, system_prompt)
+                    for prompt in prompt_batch
+                ]
+                batch = tokenizer(rendered, return_tensors="pt", padding=True)
+                batch = {name: value.to(device) for name, value in batch.items()}
+                with torch.inference_mode():
+                    generated = model.generate(
+                        **batch,
+                        do_sample=False,
+                        max_new_tokens=max_new_tokens,
+                    )
+                input_width = batch["input_ids"].shape[1]
+                for offset, prompt in enumerate(prompt_batch):
+                    new_tokens = generated[offset, input_width:]
+                    response = tokenizer.decode(new_tokens, skip_special_tokens=True)
+                    line = (
+                        json.dumps(
+                            {
+                                "id": start + offset,
+                                "prompt": prompt,
+                                "response": response,
+                            },
+                            ensure_ascii=False,
+                            sort_keys=True,
+                        )
+                        + "\n"
+                    )
+                    handle.write(line)
+                    digest.update(line.encode())
+                handle.flush()
+    finally:
+        tokenizer.padding_side = previous_padding_side
     return digest.hexdigest()
 
 
@@ -79,6 +104,7 @@ def run_arm(
     output: Path,
     max_new_tokens: int,
     system_prompt: str,
+    batch_size: int,
 ) -> dict:
     import numpy as np
     import torch
@@ -93,6 +119,7 @@ def run_arm(
             output / f"{name}.jsonl",
             max_new_tokens,
             system_prompt,
+            batch_size,
         )
         for name, values in prompts.items()
     }
@@ -119,6 +146,12 @@ def main() -> int:
     parser.add_argument("--system-prompt", default="You are a helpful assistant.")
     parser.add_argument("--max-new-tokens", type=int, default=256)
     parser.add_argument("--alpha", type=float, default=1.0)
+    parser.add_argument("--batch-size", type=int, default=1)
+    parser.add_argument(
+        "--intervention-mode",
+        choices=("module-hooks", "in-memory-weight-edit"),
+        default="module-hooks",
+    )
     parser.add_argument(
         "--skip-base",
         action="store_true",
@@ -158,6 +191,12 @@ def main() -> int:
     model.eval()
     validate_live_model(model, cfg)
     intervention_layers = list(range(cfg.edit.first_layer, cfg.edit.last_layer + 1))
+    if args.intervention_mode == "in-memory-weight-edit" and (
+        not args.skip_base or len(args.direction_key) != 1
+    ):
+        raise RuntimeError(
+            "An in-memory weight edit requires --skip-base and exactly one direction."
+        )
     arms = {}
     if not args.skip_base:
         arms["base"] = run_arm(
@@ -167,8 +206,31 @@ def main() -> int:
             output / "base",
             args.max_new_tokens,
             args.system_prompt,
+            args.batch_size,
         )
-    for key in args.direction_key:
+    if args.intervention_mode == "in-memory-weight-edit":
+        key = args.direction_key[0]
+        measured_layer = direction_layer(key)
+        intervention_record = apply_runtime_edit(
+            model,
+            cfg,
+            directions[key],
+            args.alpha,
+            generation_uses_mtp=False,
+        )
+        arms[key] = run_arm(
+            model,
+            processor,
+            prompt_groups,
+            output / key,
+            args.max_new_tokens,
+            args.system_prompt,
+            args.batch_size,
+        )
+        arms[key]["direction_layer"] = measured_layer
+        arms[key]["intervention_layers"] = intervention_layers
+        arms[key]["intervention"] = intervention_record
+    for key in args.direction_key if args.intervention_mode == "module-hooks" else ():
         measured_layer = direction_layer(key)
         with weight_equivalent_ablation_hooks(
             model,
@@ -184,6 +246,7 @@ def main() -> int:
                 output / key,
                 args.max_new_tokens,
                 args.system_prompt,
+                args.batch_size,
             )
         arms[key]["direction_layer"] = measured_layer
         arms[key]["intervention_layers"] = intervention_layers
@@ -198,6 +261,8 @@ def main() -> int:
             "prompt_sources": prompt_sources,
             "system_prompt": args.system_prompt,
             "max_new_tokens": args.max_new_tokens,
+            "batch_size": args.batch_size,
+            "intervention_mode": args.intervention_mode,
             "base_arm_included": not args.skip_base,
             "intervention_layers": intervention_layers,
             "arms": arms,
