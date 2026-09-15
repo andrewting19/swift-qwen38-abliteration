@@ -8,7 +8,13 @@ python scripts/serve_dashboard.py --port 8765
 
 Open <http://127.0.0.1:8765/>. The page polls the safe snapshot every three
 seconds. Use `--status PATH` to serve a different snapshot. The server exposes
-only the dashboard and `/status.json`. It does not expose the repository tree.
+only the dashboard, `/status.json`, the comparison page at `/compare`, and a
+fixed allowlist of before/after experiment artifacts. It does not expose the
+repository tree.
+
+The comparison page displays raw prompts and responses from the saved base and
+final-candidate runs. Harmful prompt text is collapsed by default. All content
+stays on the local machine.
 
 Refresh the snapshot once, or keep it updated while a remote run is active:
 

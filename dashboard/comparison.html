@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Swift Qwen3.8 · Before and after</title>
+  <style>
+    :root { color-scheme:dark; --bg:#090e1a; --panel:#111a2d; --panel2:#17233b; --line:#2a3858; --text:#edf3ff; --muted:#9baac5; --cyan:#6be6dc; --blue:#8eadff; --green:#76e39d; --amber:#f6cb70; --red:#ff91a0; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-height:100vh; background:radial-gradient(900px 520px at 75% -10%,#203a68 0%,transparent 65%),var(--bg); color:var(--text); font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,sans-serif; }
+    .shell { width:min(1480px,calc(100% - 30px)); margin:auto; padding:28px 0 60px; }
+    h1,h2,p { margin:0; } h1 { font-size:clamp(27px,4vw,41px); letter-spacing:-.035em; } h2 { font-size:16px; }
+    .eyebrow { color:var(--cyan); text-transform:uppercase; letter-spacing:.14em; font-size:11px; font-weight:800; margin-bottom:7px; }
+    .sub { color:var(--muted); margin-top:8px; max-width:850px; }
+    .notice { margin:20px 0 14px; border:1px solid #735d2e; background:#392e1766; border-radius:13px; padding:12px 14px; color:#f3d799; }
+    .toolbar { position:sticky; top:0; z-index:5; display:flex; flex-wrap:wrap; gap:10px; align-items:end; margin:0 0 16px; padding:13px; background:#0e1728ee; backdrop-filter:blur(14px); border:1px solid var(--line); border-radius:14px; }
+    label { display:grid; gap:5px; color:var(--muted); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+    select,input { min-height:38px; border:1px solid var(--line); border-radius:9px; background:#0a1222; color:var(--text); padding:7px 10px; font:inherit; }
+    input { min-width:260px; } button { min-height:38px; border:1px solid #39726f; border-radius:9px; background:#123b3c; color:var(--cyan); padding:7px 13px; font-weight:750; cursor:pointer; }
+    .count { margin-left:auto; color:var(--muted); padding:8px 4px; }
+    .summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:16px; }
+    .stat,.row { border:1px solid var(--line); border-radius:14px; background:linear-gradient(145deg,#16223aee,#0e1729ee); }
+    .stat { padding:14px; } .stat small { display:block; color:var(--muted); margin-bottom:6px; } .stat strong { font-size:20px; }
+    .rows { display:grid; gap:13px; } .row { overflow:hidden; }
+    .rowhead { display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:11px 14px; background:#18243c; border-bottom:1px solid var(--line); }
+    .rowid { color:var(--blue); font:700 12px ui-monospace,SFMono-Regular,Menlo,monospace; margin-right:auto; }
+    .tag { display:inline-flex; align-items:center; border-radius:999px; padding:3px 8px; background:#27344f; color:var(--muted); font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; }
+    .tag.good { background:#173d2b; color:var(--green); } .tag.bad { background:#4a2029; color:var(--red); } .tag.warn { background:#443519; color:var(--amber); }
+    details.prompt { border-bottom:1px solid var(--line); } details.prompt summary { cursor:pointer; color:var(--muted); padding:9px 14px; font-size:12px; } .prompttext { white-space:pre-wrap; padding:0 14px 13px; color:#cdd7eb; }
+    .pair { display:grid; grid-template-columns:1fr 1fr; } .answer { min-width:0; padding:15px; } .answer + .answer { border-left:1px solid var(--line); }
+    .answerhead { display:flex; justify-content:space-between; gap:10px; align-items:center; margin-bottom:10px; } .answerhead h2 { color:var(--muted); }
+    .response { white-space:pre-wrap; overflow-wrap:anywhere; font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace; }
+    .empty { color:var(--amber); font-style:italic; } .error { border:1px solid #7e3440; background:#401b2466; color:#ffb2bc; border-radius:12px; padding:13px; }
+    .footer { color:var(--muted); text-align:center; margin-top:18px; font-size:11px; }
+    @media (max-width:900px) { .summary { grid-template-columns:1fr 1fr; } .pair { grid-template-columns:1fr; } .answer + .answer { border-left:0; border-top:1px solid var(--line); } .count { width:100%; margin-left:0; } }
+    @media (max-width:540px) { .shell { width:calc(100% - 18px); } .summary { grid-template-columns:1fr; } input { min-width:0; width:100%; } label { flex:1 1 100%; } }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <div class="eyebrow">Swift Qwen3.8 · local artifact review</div>
+    <h1>Before and after responses</h1>
+    <p class="sub">Base Swift-Qwen3.8-27B versus the final reversible rank-6 candidate. Rows use identical prompts and deterministic generation. Text stays on this computer.</p>
+    <div class="notice"><strong>Content notice:</strong> The harmful groups contain unsafe requests and model-generated unsafe content. Prompt text is collapsed by default.</div>
+    <div class="toolbar">
+      <label>Prompt group<select id="group"><option value="standard_harmful">Standard harmful</option><option value="matched_harmful">Topic-matched harmful</option><option value="standard_harmless">Standard harmless</option><option value="matched_harmless">Topic-matched harmless</option></select></label>
+      <label>Show<select id="filter"><option value="all">All rows</option><option value="changed">Refusal label changed</option><option value="base_refused">Base refused</option><option value="after_refused">Candidate refused</option><option value="after_answered">Candidate did not refuse</option><option value="success">Candidate behavior success</option></select></label>
+      <label>Find in responses<input id="search" type="search" placeholder="Filter locally"></label>
+      <button id="reload" type="button">Reload</button>
+      <div id="count" class="count">Loading…</div>
+    </div>
+    <section id="summary" class="summary" aria-label="Current group summary"></section>
+    <section id="rows" class="rows"><div class="stat">Loading local artifacts…</div></section>
+    <div class="footer">The server exposes only this page and a fixed allowlist of comparison artifacts.</div>
+  </main>
+  <script>
+    const $ = id => document.getElementById(id);
+    const state = { rows:[] };
+    const harmful = group => group.endsWith('_harmful') && !group.endsWith('_harmless');
+    async function jsonl(url, optional=false) {
+      const response = await fetch(url, {cache:'no-store'});
+      if (optional && response.status === 404) return [];
+      if (!response.ok) throw new Error(`${url}: HTTP ${response.status}`);
+      const text = await response.text();
+      return text.split(/\r?\n/).filter(Boolean).map(line => JSON.parse(line));
+    }
+    const byId = rows => new Map(rows.map(row => [String(row.id),row]));
+    function judgment(map,id) { return map.get(String(id))?.judgment || {}; }
+    function tag(text, tone='') { const node=document.createElement('span'); node.className=`tag ${tone}`; node.textContent=text; return node; }
+    function stat(label,value) { const node=document.createElement('div'); node.className='stat'; const a=document.createElement('small'); a.textContent=label; const b=document.createElement('strong'); b.textContent=value; node.append(a,b); return node; }
+    function responsePane(title,text,j) {
+      const pane=document.createElement('article'); pane.className='answer';
+      const head=document.createElement('div'); head.className='answerhead';
+      const heading=document.createElement('h2'); heading.textContent=title; head.append(heading);
+      const tags=document.createElement('div');
+      if (typeof j.response_refusal === 'boolean') tags.append(tag(j.response_refusal?'Refusal':'No refusal',j.response_refusal?'bad':'good'));
+      if (typeof j.behavior_success === 'boolean') tags.append(tag(j.behavior_success?'Behavior success':'No behavior success',j.behavior_success?'warn':''));
+      if (j.empty_output) tags.append(tag('Empty','bad'));
+      head.append(tags);
+      const body=document.createElement('div'); body.className=`response${text?'':' empty'}`; body.textContent=text || '[Empty response]';
+      pane.append(head,body); return pane;
+    }
+    function render() {
+      const filter=$('filter').value, needle=$('search').value.trim().toLowerCase();
+      const visible=state.rows.filter(row => {
+        const br=row.baseJudge.response_refusal, ar=row.afterJudge.response_refusal, hs=row.afterHarm.behavior_success;
+        if (filter==='changed' && br===ar) return false;
+        if (filter==='base_refused' && br!==true) return false;
+        if (filter==='after_refused' && ar!==true) return false;
+        if (filter==='after_answered' && ar!==false) return false;
+        if (filter==='success' && hs!==true) return false;
+        if (needle && !`${row.base.response}\n${row.after.response}`.toLowerCase().includes(needle)) return false;
+        return true;
+      });
+      $('count').textContent=`Showing ${visible.length} of ${state.rows.length}`;
+      const root=$('rows'); root.replaceChildren();
+      for (const row of visible) {
+        const card=document.createElement('article'); card.className='row';
+        const head=document.createElement('div'); head.className='rowhead'; const id=document.createElement('span'); id.className='rowid'; id.textContent=`Row ${row.base.id}`; head.append(id);
+        if (row.baseJudge.response_refusal !== row.afterJudge.response_refusal) head.append(tag('Refusal changed','good'));
+        if (row.afterHarm.behavior_success) head.append(tag('Candidate behavior success','warn'));
+        const details=document.createElement('details'); details.className='prompt'; const sum=document.createElement('summary'); sum.textContent='Show prompt'; const prompt=document.createElement('div'); prompt.className='prompttext'; prompt.textContent=row.base.prompt; details.append(sum,prompt);
+        const pair=document.createElement('div'); pair.className='pair'; pair.append(responsePane('Before · base model',row.base.response,row.baseJudge),responsePane('After · rank-6 intervention',row.after.response,{...row.afterJudge,...row.afterHarm}));
+        card.append(head,details,pair); root.append(card);
+      }
+      if (!visible.length) { const empty=document.createElement('div'); empty.className='stat'; empty.textContent='No rows match this filter.'; root.append(empty); }
+    }
+    async function load() {
+      const group=$('group').value, base=`/comparison-data/${group}`;
+      $('rows').innerHTML='<div class="stat">Loading local artifacts…</div>'; $('count').textContent='Loading…';
+      try {
+        const [before,after,bw,aw,bh,ah]=await Promise.all([
+          jsonl(`${base}/base.jsonl`),jsonl(`${base}/after.jsonl`),jsonl(`${base}/base-wildguard.jsonl`),jsonl(`${base}/after-wildguard.jsonl`),jsonl(`${base}/base-harmbench.jsonl`,true),jsonl(`${base}/after-harmbench.jsonl`,true)
+        ]);
+        const am=byId(after), bwm=byId(bw), awm=byId(aw), bhm=byId(bh), ahm=byId(ah);
+        state.rows=before.filter(x=>am.has(String(x.id))).map(baseRow=>({base:baseRow,after:am.get(String(baseRow.id)),baseJudge:judgment(bwm,baseRow.id),afterJudge:judgment(awm,baseRow.id),baseHarm:judgment(bhm,baseRow.id),afterHarm:judgment(ahm,baseRow.id)}));
+        const baseRef=state.rows.filter(x=>x.baseJudge.response_refusal).length, afterRef=state.rows.filter(x=>x.afterJudge.response_refusal).length, successes=state.rows.filter(x=>x.afterHarm.behavior_success).length;
+        const summary=$('summary'); summary.replaceChildren(stat('Matched rows',String(state.rows.length)),stat('Base refusals',`${baseRef}/${state.rows.length}`),stat('Candidate refusals',`${afterRef}/${state.rows.length}`),stat(harmful(group)?'Candidate behavior success':'Empty candidate outputs',harmful(group)?`${successes}/${state.rows.length}`:`${state.rows.filter(x=>x.afterJudge.empty_output).length}/${state.rows.length}`));
+        render();
+      } catch (error) { const root=$('rows'); root.replaceChildren(); const node=document.createElement('div'); node.className='error'; node.textContent=`Could not load comparison: ${error.message}`; root.append(node); $('count').textContent='Load failed'; }
+    }
+    $('group').addEventListener('change',load); $('filter').addEventListener('change',render); $('search').addEventListener('input',render); $('reload').addEventListener('click',load); load();
+  </script>
+</body>
+</html>
