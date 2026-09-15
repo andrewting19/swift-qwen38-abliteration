@@ -15,6 +15,9 @@ scope_ack=I_UNDERSTAND_THIS_LOADS_AND_EDITS_A_55GB_MODEL
 scope_configs=(
   configs/orca_style_no_embedding.toml
   configs/late_half_no_embedding.toml
+  configs/late_40_63_no_embedding.toml
+  configs/late_48_63_no_embedding.toml
+  configs/late_52_63_no_embedding.toml
   configs/huihui_band.toml
   configs/orca_style_mixer_only.toml
   configs/orca_style_mlp_only.toml
