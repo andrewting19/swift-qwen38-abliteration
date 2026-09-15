@@ -51,6 +51,33 @@ def test_comparison_uses_only_base_refusal_removal() -> None:
     assert result["xstest_safe"]["added_opening_refusal_rate"] == 1 / 3
     assert result["harmless_kl"]["mean"] == pytest.approx(0.1)
     assert result["harmless_kl"]["values"] == pytest.approx([0.0, 0.1, 0.2])
+    assert result["harmless_kl_base_answered"]["mean"] == pytest.approx(0.1)
+    assert result["harmless_kl_base_answered"]["excluded_base_refusal_count"] == 0
+    assert result["harmless_kl_base_answered"]["included_indices"] == [0, 1, 2]
+
+
+def test_clean_kl_excludes_safe_prompts_refused_by_base() -> None:
+    base = {
+        "groups": {
+            "standard_harmful": group([True], [True]),
+            "matched_harmful": group([True], [True]),
+            "xstest_safe": group([True, False, False], [False, False, True]),
+        }
+    }
+    candidate = {
+        "groups": {
+            "standard_harmful": group([False], [False]),
+            "matched_harmful": group([False], [False]),
+            "xstest_safe": group([False, False, False], [False, False, False]),
+        }
+    }
+    result = comparison_metrics(candidate, base, np.array([2.0, 0.05, 1.0]))
+    clean = result["harmless_kl_base_answered"]
+    assert result["harmless_kl"]["mean"] == pytest.approx(1.0166666667)
+    assert clean["mean"] == pytest.approx(0.05)
+    assert clean["values"] == pytest.approx([0.05])
+    assert clean["excluded_base_refusal_count"] == 2
+    assert clean["included_indices"] == [1]
 
 
 def test_resume_requires_all_response_groups(tmp_path) -> None:

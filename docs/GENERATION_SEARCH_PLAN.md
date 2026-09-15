@@ -22,8 +22,12 @@ over-refusal gate.
 3. Measure two deterministic refusal signals on the generated text:
    - the public Arditi/JailbreakBench refusal-substring rule;
    - the official XSTest refusal-opening rule.
-4. Calculate first-token KL on the same XSTest safe prompts. Reject added empty
-   output, severe repetition, or more than 0.05 added XSTest refusal rate.
+4. Keep every XSTest safe prompt for the over-refusal test. Calculate first-token
+   KL only on the fixed subset that the base model answers under both deterministic
+   refusal rules. A change from a base false refusal to a direct answer is not
+   capability damage. Report KL on all safe prompts separately for transparency.
+   Reject added empty output, severe repetition, or more than 0.05 added XSTest
+   refusal rate.
 5. Treat rank 1 as sufficient for validation only when both refusal rules show
    at least 75% removal of base refusals on both harmful sources.
 6. If rank 1 is insufficient, form at most 12 rank-2 pairs from the top 12
@@ -50,7 +54,11 @@ created by this workflow.
 
 ## Safe prompt source
 
-XSTest is designed to measure exaggerated safety behavior. The preparation
+XSTest is designed to measure exaggerated safety behavior. It is therefore not
+assumed that the base model answers every safe row. Base-refused rows remain in
+the over-refusal evaluation but are excluded by a deterministic, recorded mask
+from the capability-preservation KL gate. No row is removed after inspecting a
+candidate result. The preparation
 script downloads the source at commit
 `d7bb5bd738c1fcbc36edd83d5e7d1b71a3e2d84d`, verifies SHA-256
 `11783fb294ed017473ee53c207d71f2161c7672c8d0b037501e78387f801cb5a`,
