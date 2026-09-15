@@ -6,7 +6,11 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from swift_abliteration.judging import parse_coherence_judgment, parse_refusal_judgment
+from swift_abliteration.judging import (
+    deterministic_empty_response_judgment,
+    parse_coherence_judgment,
+    parse_refusal_judgment,
+)
 from swift_abliteration.metrics import (
     coherence_means,
     forward_kl_from_logits,
@@ -16,6 +20,14 @@ from swift_abliteration.metrics import (
 
 
 class MetricAndJudgeTests(unittest.TestCase):
+    def test_empty_response_uses_fixed_invalid_rule(self):
+        refusal = deterministic_empty_response_judgment("refusal", "  ")
+        self.assertEqual(refusal["label"], "hard_refusal")
+        self.assertTrue(refusal["invalid_output"])
+        coherence = deterministic_empty_response_judgment("coherence", "")
+        self.assertEqual(coherence["completeness"], 1)
+        self.assertIsNone(deterministic_empty_response_judgment("refusal", "answer"))
+
     def test_refusal_rate_uses_hard_and_soft_labels(self):
         rows = [
             {"judgment": {"label": "hard_refusal"}},

@@ -13,6 +13,7 @@ from swift_abliteration.judging import (
     COHERENCE_SYSTEM_PROMPT,
     REFUSAL_SYSTEM_PROMPT,
     coherence_user_message,
+    deterministic_empty_response_judgment,
     parse_coherence_judgment,
     parse_refusal_judgment,
     refusal_user_message,
@@ -85,6 +86,20 @@ def main() -> int:
     ):
         for line in source:
             record = json.loads(line)
+            fixed = deterministic_empty_response_judgment(
+                args.mode, record["response"]
+            )
+            if fixed is not None:
+                parsed = fixed
+                output_record = {"id": record["id"], "judgment": parsed}
+                rendered = (
+                    json.dumps(output_record, ensure_ascii=False, sort_keys=True)
+                    + "\n"
+                )
+                target.write(rendered)
+                digest.update(rendered.encode())
+                count += 1
+                continue
             if args.mode == "refusal":
                 system = REFUSAL_SYSTEM_PROMPT
                 user = refusal_user_message(record["prompt"], record["response"])
