@@ -18,6 +18,13 @@ from swift_abliteration.response_mode_judge import (
 
 
 DEFAULT_GROUPS = ("standard_harmful", "matched_harmful")
+ALLOWED_GROUPS = (
+    "standard_harmful",
+    "matched_harmful",
+    "standard_harmless",
+    "matched_harmless",
+    "xstest_safe",
+)
 
 
 def read_jsonl(path: Path) -> list[dict]:
@@ -94,7 +101,7 @@ def main() -> int:
         if path.is_dir() and not path.name.startswith(".")
     )
     groups = tuple(args.group or DEFAULT_GROUPS)
-    unknown = sorted(set(groups).difference(DEFAULT_GROUPS))
+    unknown = sorted(set(groups).difference(ALLOWED_GROUPS))
     if unknown:
         raise ValueError(f"Unsupported harmful groups: {unknown}")
     files = [
