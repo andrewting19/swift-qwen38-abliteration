@@ -47,7 +47,8 @@ def main() -> int:
     parser.add_argument("--batch-size", type=int, default=24)
     parser.add_argument("--max-input-tokens", type=int, default=2048)
     args = parser.parse_args()
-    require_large_gpu()
+    # The pinned 4B BF16 judge fits well below the target-model memory guard.
+    require_large_gpu(12 * 1024**3)
     if args.batch_size <= 0:
         raise ValueError("Batch size must be positive.")
 

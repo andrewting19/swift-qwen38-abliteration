@@ -57,7 +57,9 @@ def main() -> int:
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--max-input-tokens", type=int, default=4096)
     args = parser.parse_args()
-    require_large_gpu()
+    # The pinned 13B BF16 classifier needs about 26 GiB. It does not require the
+    # 75 GiB guard used for the 55 GB target model.
+    require_large_gpu(28 * 1024**3)
     if args.batch_size <= 0:
         raise ValueError("Batch size must be positive.")
 
