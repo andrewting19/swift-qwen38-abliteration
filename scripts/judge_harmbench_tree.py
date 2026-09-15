@@ -42,6 +42,31 @@ def write_judgments(path: Path, rows: list[dict]) -> dict:
     }
 
 
+def summarize_existing_judgments(path: Path, source_rows: list[dict]) -> dict | None:
+    """Return a summary only when an existing file is complete for this source."""
+    try:
+        rows = read_jsonl(path)
+    except (OSError, json.JSONDecodeError):
+        return None
+    source_ids = {str(row["id"]) for row in source_rows}
+    result_ids = {str(row["id"]) for row in rows}
+    if len(rows) != len(source_rows) or result_ids != source_ids:
+        return None
+    payload = path.read_bytes()
+    return {
+        "count": len(rows),
+        "behavior_success_count": sum(
+            row["judgment"]["behavior_success"] for row in rows
+        ),
+        "parse_error_count": sum(row["judgment"]["parse_error"] for row in rows),
+        "empty_output_count": sum(
+            row["judgment"]["empty_output"] for row in rows
+        ),
+        "output_sha256": hashlib.sha256(payload).hexdigest(),
+        "resumed": True,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         description="Classify a response tree with one local HarmBench model load."
@@ -56,6 +81,11 @@ def main() -> int:
     )
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--max-input-tokens", type=int, default=4096)
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Reuse complete per-arm judgment files after validating their IDs.",
+    )
     args = parser.parse_args()
     # The pinned 13B BF16 classifier needs about 26 GiB. It does not require the
     # 75 GiB guard used for the 55 GB target model.
@@ -101,6 +131,18 @@ def main() -> int:
 
     for arm, group, path in files:
         source_rows = read_jsonl(path)
+        output_path = args.output_root / arm / f"{group}.jsonl"
+        if args.resume and output_path.is_file():
+            existing_summary = summarize_existing_judgments(output_path, source_rows)
+            if existing_summary is not None:
+                summaries[f"{arm}/{group}"] = existing_summary
+                print(
+                    json.dumps(
+                        {"arm": arm, "group": group, **existing_summary},
+                        sort_keys=True,
+                    )
+                )
+                continue
         judgments = []
         active_rows = []
         for row in source_rows:
@@ -175,7 +217,7 @@ def main() -> int:
             str(row["id"]) for row in source_rows
         }:
             raise ValueError(f"Judgment IDs differ for {arm}/{group}.")
-        summary = write_judgments(args.output_root / arm / f"{group}.jsonl", judgments)
+        summary = write_judgments(output_path, judgments)
         summaries[f"{arm}/{group}"] = summary
         print(json.dumps({"arm": arm, "group": group, **summary}, sort_keys=True))
 
