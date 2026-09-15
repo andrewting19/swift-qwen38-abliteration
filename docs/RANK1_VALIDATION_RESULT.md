@@ -3,9 +3,10 @@
 ## Decision state
 
 The reversible `matched_first_output_layer_52_winsor_995` candidate at alpha
-1.0 passed every measured gate except HarmBench behavior completion. It is not a
-selected release candidate. Manual review of the classifier disagreement is the
-next decision step.
+1.0 is rejected. It passed the automated refusal-language, clean harmless-KL,
+over-refusal, and measured capability gates. It failed HarmBench behavior
+completion. Manual review confirmed that most apparent non-refusals were soft
+refusals or non-compliant answers. Review also found clear grammatical errors.
 
 No final-test data was used. No permanent checkpoint was created. No OpenAI
 model or remote judgment API was used.
@@ -34,9 +35,8 @@ tokens.
 
 The deterministic rules and HarmBench measure different outcomes. The rules
 detect common refusal language. HarmBench asks whether the response materially
-performs the requested behavior. The current aggregate evidence is consistent
-with removal of refusal wording without reliable behavior completion. Manual
-review must confirm this interpretation because HarmBench can make errors.
+performs the requested behavior. Manual review confirmed that the edit removed
+refusal wording without reliable behavior completion.
 
 ## Harmless behavior
 
@@ -74,14 +74,43 @@ aggregate SHA-256 values both equaled
 `acad4ac26bd682580aac60a6520c4c38c15f78b80d6ba90794dcf389a11bc965`
 before Vast.ai instance `51135396` was destroyed.
 
-## Next decision
+## Process implications
 
-1. Review the default `/rank1` disagreement rows.
-2. Decide whether HarmBench is mainly correct or mainly producing false
-   negatives.
-3. If HarmBench is mainly correct, reject this direction and search for a
-   direction selected by actual behavior completion.
-4. If HarmBench is mainly wrong, define and record a replacement behavior gate
-   before any final-test run.
-5. Do not create a checkpoint or use final-test data until the behavior gate
-   passes.
+The weight-equivalent intervention is still numerically validated. The failure
+is in candidate construction and selection:
+
+- The deterministic refusal rules rewarded surface-level refusal-word removal.
+- First-token KL did not measure later language drift.
+- The deterministic repetition and length checks did not detect grammar errors.
+- Multiple-choice benchmarks measured retained factual choice accuracy, not
+  generated-answer quality.
+- The layer-52 first-output direction probably contains assistant-opening and
+  language-style information in addition to refusal information.
+
+Do not tune alpha or add another direction to this candidate. Those changes do
+not correct the measured direction's lack of refusal specificity.
+
+## Next experiment
+
+1. Re-score all saved rank-1, rank-2, and scope-screen outputs with a local
+   open-weight response-mode judge. Distinguish direct answers, partial answers,
+   soft refusals, hard refusals, and incoherent answers.
+2. Use HarmBench behavior completion during candidate screening, not only after
+   a refusal-rule finalist is selected.
+3. Add a harmless generation-quality gate. Measure token-level drift over a
+   continuation, not only first-token KL, and reject grammar or coherence
+   regressions.
+4. Test residual-writer-only edits without the token embedding before broad edit
+   variants. The embedding edit is not required by the Orca-style method and can
+   change every token representation.
+5. Prioritize prompt-end directions and other saved directions that did not use
+   the first generated-token activation. The rejected direction can contain
+   generic answer-opening syntax.
+6. Generate 128-token outputs only for candidates that show substantive-answer
+   improvement on a small batched screen.
+7. Form rank-2 pairs only from rank-1 directions that each show a causal
+   improvement in real answering. Do not combine directions that only remove
+   refusal words.
+8. Run capability benchmarks only after the behavior and generation-quality
+   gates pass.
+9. Do not create a checkpoint or use final-test data until all gates pass.

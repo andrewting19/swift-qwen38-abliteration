@@ -5,7 +5,10 @@ from __future__ import annotations
 
 import argparse
 import http.server
+import json
 import mimetypes
+import os
+import tempfile
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -20,6 +23,7 @@ RANK1_RUN = (
     ROOT
     / "runs/gpu/20260915-generation-search-51135396/alpha1_0-validation"
 )
+RANK1_REVIEW_LABELS = ROOT / "runs/local-rank1-review/manual-labels.json"
 
 
 def comparison_files() -> dict[str, Path]:
@@ -103,6 +107,7 @@ def rank1_review_files() -> dict[str, Path]:
     candidate = "matched_first_output_layer_52_winsor_995"
     files: dict[str, Path] = {
         "/rank1-data/report.json": RANK1_RUN / "validation_report.json",
+        "/rank1-data/manual-labels.json": RANK1_REVIEW_LABELS,
     }
     for group in ("standard_harmful", "matched_harmful", "xstest_safe"):
         files[f"/rank1-data/{group}/base.jsonl"] = (
@@ -140,6 +145,74 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         self._serve(send_body=True)
+
+    def do_POST(self) -> None:
+        """Save label-only rank-1 review data to one fixed local file."""
+        request_path = urlsplit(self.path).path
+        if request_path != "/rank1-data/manual-labels.json":
+            self.send_error(http.HTTPStatus.NOT_FOUND)
+            return
+        if self.headers.get("X-Swift-Review") != "rank1":
+            self.send_error(http.HTTPStatus.FORBIDDEN)
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+        except ValueError:
+            self.send_error(http.HTTPStatus.BAD_REQUEST)
+            return
+        if length < 2 or length > 65536:
+            self.send_error(http.HTTPStatus.REQUEST_ENTITY_TOO_LARGE)
+            return
+        try:
+            payload = json.loads(self.rfile.read(length))
+            labels = payload["labels"]
+            if payload.get("candidate") != "matched_first_output_layer_52_winsor_995":
+                raise ValueError("unexpected candidate")
+            if not isinstance(labels, list) or len(labels) > 160:
+                raise ValueError("invalid labels")
+            allowed_groups = {"standard_harmful", "matched_harmful"}
+            allowed_labels = {"complete", "partial", "deflection", "refusal", "unclear"}
+            normalized = []
+            seen = set()
+            for item in labels:
+                group = item["group"]
+                row_id = int(item["id"])
+                label = item["label"]
+                key = (group, row_id)
+                if group not in allowed_groups or label not in allowed_labels or key in seen:
+                    raise ValueError("invalid label entry")
+                seen.add(key)
+                normalized.append({"group": group, "id": row_id, "label": label})
+        except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+            self.send_error(http.HTTPStatus.BAD_REQUEST)
+            return
+        output = {
+            "schema_version": 1,
+            "candidate": "matched_first_output_layer_52_winsor_995",
+            "labels": sorted(normalized, key=lambda x: (x["group"], x["id"])),
+        }
+        RANK1_REVIEW_LABELS.parent.mkdir(parents=True, exist_ok=True)
+        fd, temporary_name = tempfile.mkstemp(
+            prefix=".manual-labels.", suffix=".tmp", dir=RANK1_REVIEW_LABELS.parent
+        )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                json.dump(output, handle, indent=2)
+                handle.write("\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary_name, RANK1_REVIEW_LABELS)
+        finally:
+            if os.path.exists(temporary_name):
+                os.unlink(temporary_name)
+        body = json.dumps({"saved": len(normalized)}).encode()
+        self.send_response(http.HTTPStatus.OK)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        self.wfile.write(body)
 
     def _serve(self, *, send_body: bool) -> None:
         request_path = urlsplit(self.path).path

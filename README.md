@@ -3,10 +3,11 @@
 This private research repository contains a controlled refusal-direction experiment for `ukisai/Swift-Qwen3.8-27b`.
 
 The latest GPU experiment tested one reversible rank-1 edit. It passed the
-refusal-language, clean harmless-KL, over-refusal, output-quality, and three
-measured capability gates. It failed the fixed HarmBench behavior-completion
-gate. This disagreement requires manual response review. No permanent checkpoint
-was written and the final-test split was not used.
+refusal-language, clean harmless-KL, over-refusal, and three measured capability
+gates. It failed the fixed HarmBench behavior-completion gate. Manual review
+confirmed soft refusals, non-compliance, and language errors that the automated
+quality rule missed. The candidate is rejected. No permanent checkpoint was
+written and the final-test split was not used.
 
 ## Current state
 
