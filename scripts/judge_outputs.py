@@ -7,6 +7,7 @@ import json
 import os
 import time
 from pathlib import Path
+from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
 from swift_abliteration.judging import (
@@ -71,6 +72,7 @@ def main() -> int:
     parser.add_argument("--minimum-delay", type=float, default=0.0)
     parser.add_argument("--max-completion-tokens", type=int, default=256)
     parser.add_argument("--retries", type=int, default=3)
+    parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
     api_key = os.environ.get(args.api_key_env)
     if not api_key:
@@ -79,13 +81,31 @@ def main() -> int:
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     digest = hashlib.sha256()
-    count = 0
+    records = [
+        json.loads(line)
+        for line in input_path.read_text(encoding="utf-8").splitlines()
+        if line
+    ]
+    existing_payload = b""
+    completed_ids: list[int] = []
+    if args.resume and output_path.exists():
+        existing_payload = output_path.read_bytes()
+        existing_rows = [
+            json.loads(line)
+            for line in existing_payload.decode("utf-8").splitlines()
+            if line
+        ]
+        completed_ids = [row["id"] for row in existing_rows]
+        expected_ids = [row["id"] for row in records[: len(existing_rows)]]
+        if completed_ids != expected_ids:
+            raise RuntimeError("Existing output is not an ordered prefix of the input.")
+        digest.update(existing_payload)
+    count = len(completed_ids)
+    added_count = 0
     with (
-        input_path.open(encoding="utf-8") as source,
-        output_path.open("w", encoding="utf-8") as target,
+        output_path.open("a" if completed_ids else "w", encoding="utf-8") as target,
     ):
-        for line in source:
-            record = json.loads(line)
+        for record in records[count:]:
             fixed = deterministic_empty_response_judgment(
                 args.mode, record["response"]
             )
@@ -99,6 +119,7 @@ def main() -> int:
                 target.write(rendered)
                 digest.update(rendered.encode())
                 count += 1
+                added_count += 1
                 continue
             if args.mode == "refusal":
                 system = REFUSAL_SYSTEM_PROMPT
@@ -126,7 +147,14 @@ def main() -> int:
                 except Exception as exc:
                     last_error = exc
                     if attempt + 1 < max(1, args.retries):
-                        time.sleep(max(1.0, args.minimum_delay))
+                        delay = max(1.0, args.minimum_delay)
+                        if isinstance(exc, HTTPError) and exc.code == 429:
+                            retry_after = exc.headers.get("Retry-After")
+                            try:
+                                delay = max(delay, float(retry_after))
+                            except (TypeError, ValueError):
+                                delay = max(delay, float(2**attempt))
+                        time.sleep(delay)
             else:
                 raise RuntimeError(
                     f"Judge failed for record id {record['id']} after {max(1, args.retries)} attempts: {type(last_error).__name__}"
@@ -138,12 +166,14 @@ def main() -> int:
             target.write(rendered)
             digest.update(rendered.encode())
             count += 1
+            added_count += 1
             if args.minimum_delay:
                 time.sleep(args.minimum_delay)
     print(
         json.dumps(
             {
                 "count": count,
+                "added_count": added_count,
                 "output_sha256": digest.hexdigest(),
                 "judge_model": args.model,
                 "reasoning_effort": args.reasoning_effort,
