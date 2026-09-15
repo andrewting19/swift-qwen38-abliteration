@@ -26,6 +26,7 @@ def call_api(
     system: str,
     user: str,
     reasoning_effort: str | None = None,
+    max_completion_tokens: int = 256,
 ) -> str:
     payload = {
         "model": model,
@@ -34,7 +35,7 @@ def call_api(
             {"role": "user", "content": user},
         ],
         "response_format": {"type": "json_object"},
-        "max_completion_tokens": 256,
+        "max_completion_tokens": max_completion_tokens,
     }
     if reasoning_effort:
         payload["reasoning_effort"] = reasoning_effort
@@ -67,6 +68,8 @@ def main() -> int:
     parser.add_argument("--reasoning-effort", default="minimal")
     parser.add_argument("--api-key-env", default="JUDGE_API_KEY")
     parser.add_argument("--minimum-delay", type=float, default=0.0)
+    parser.add_argument("--max-completion-tokens", type=int, default=256)
+    parser.add_argument("--retries", type=int, default=3)
     args = parser.parse_args()
     api_key = os.environ.get(args.api_key_env)
     if not api_key:
@@ -85,29 +88,34 @@ def main() -> int:
             if args.mode == "refusal":
                 system = REFUSAL_SYSTEM_PROMPT
                 user = refusal_user_message(record["prompt"], record["response"])
-                parsed = parse_refusal_judgment(
-                    call_api(
-                        args.base_url,
-                        api_key,
-                        args.model,
-                        system,
-                        user,
-                        args.reasoning_effort,
-                    )
-                )
+                parser_fn = parse_refusal_judgment
             else:
                 system = COHERENCE_SYSTEM_PROMPT
                 user = coherence_user_message(record["prompt"], record["response"])
-                parsed = parse_coherence_judgment(
-                    call_api(
-                        args.base_url,
-                        api_key,
-                        args.model,
-                        system,
-                        user,
-                        args.reasoning_effort,
+                parser_fn = parse_coherence_judgment
+            last_error: Exception | None = None
+            for attempt in range(max(1, args.retries)):
+                try:
+                    parsed = parser_fn(
+                        call_api(
+                            args.base_url,
+                            api_key,
+                            args.model,
+                            system,
+                            user,
+                            args.reasoning_effort,
+                            args.max_completion_tokens,
+                        )
                     )
-                )
+                    break
+                except Exception as exc:
+                    last_error = exc
+                    if attempt + 1 < max(1, args.retries):
+                        time.sleep(max(1.0, args.minimum_delay))
+            else:
+                raise RuntimeError(
+                    f"Judge failed for record id {record['id']} after {max(1, args.retries)} attempts: {type(last_error).__name__}"
+                ) from last_error
             output_record = {"id": record["id"], "judgment": parsed}
             rendered = (
                 json.dumps(output_record, ensure_ascii=False, sort_keys=True) + "\n"
