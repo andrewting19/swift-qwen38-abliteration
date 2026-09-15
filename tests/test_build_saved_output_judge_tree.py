@@ -52,3 +52,18 @@ def test_materialized_tree_reuses_matching_manifest(tmp_path: Path) -> None:
     assert saved["source_fingerprint"] == manifest["source_fingerprint"]
     key = manifest["items"][0]["key"]
     assert (output_root / key / "standard_harmful.jsonl").is_file()
+
+
+def test_all_pairs_finds_non_raw_responses_and_skips_judgments(tmp_path: Path) -> None:
+    run_root = tmp_path / "run"
+    for group in MODULE.GROUPS:
+        write_rows(run_root / "pilot" / "arm" / f"{group}.jsonl", "answer")
+        judgment_path = run_root / "judge" / "arm" / f"{group}.jsonl"
+        judgment_path.parent.mkdir(parents=True, exist_ok=True)
+        judgment_path.write_text(json.dumps({"id": 1, "judgment": {}}) + "\n")
+
+    manifest = MODULE.discover(run_root, all_pairs=True)
+
+    assert manifest["alias_count"] == 1
+    assert manifest["unique_candidate_count"] == 1
+    assert manifest["skipped_non_response_pair_count"] == 1

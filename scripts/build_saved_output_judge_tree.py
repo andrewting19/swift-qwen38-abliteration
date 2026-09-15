@@ -41,35 +41,55 @@ def inspect_jsonl(path: Path) -> tuple[int, str]:
     return count, ids_sha256
 
 
-def discover(run_root: Path) -> dict:
+def discover(run_root: Path, *, all_pairs: bool = False) -> dict:
     unique: dict[tuple[str, str], dict] = {}
     alias_count = 0
-    for raw_root in sorted(path for path in run_root.rglob("raw") if path.is_dir()):
-        for arm in sorted(path for path in raw_root.iterdir() if path.is_dir()):
-            paths = {group: arm / f"{group}.jsonl" for group in GROUPS}
-            if not all(path.is_file() for path in paths.values()):
-                continue
-            hashes = tuple(sha256_file(paths[group]) for group in GROUPS)
-            metadata = {group: inspect_jsonl(paths[group]) for group in GROUPS}
-            key = hashlib.sha256("".join(hashes).encode()).hexdigest()[:20]
-            item = unique.setdefault(
-                hashes,
-                {
-                    "key": f"candidate_{key}",
-                    "aliases": [],
-                    "groups": {
-                        group: {
-                            "source": str(paths[group].relative_to(run_root)),
-                            "sha256": hashes[index],
-                            "count": metadata[group][0],
-                            "ids_sha256": metadata[group][1],
-                        }
-                        for index, group in enumerate(GROUPS)
-                    },
-                },
+    skipped_non_response_pairs = 0
+    if all_pairs:
+        arms = sorted(
+            path.parent
+            for path in run_root.rglob(f"{GROUPS[0]}.jsonl")
+            if (path.parent / f"{GROUPS[1]}.jsonl").is_file()
+        )
+    else:
+        arms = [
+            arm
+            for raw_root in sorted(
+                path for path in run_root.rglob("raw") if path.is_dir()
             )
-            item["aliases"].append(str(arm.relative_to(run_root)))
-            alias_count += 1
+            for arm in sorted(path for path in raw_root.iterdir() if path.is_dir())
+        ]
+    for arm in arms:
+        paths = {group: arm / f"{group}.jsonl" for group in GROUPS}
+        if not all(path.is_file() for path in paths.values()):
+            continue
+        hashes = tuple(sha256_file(paths[group]) for group in GROUPS)
+        try:
+            metadata = {group: inspect_jsonl(paths[group]) for group in GROUPS}
+        except (KeyError, TypeError, ValueError):
+            if not all_pairs:
+                raise
+            skipped_non_response_pairs += 1
+            continue
+        key = hashlib.sha256("".join(hashes).encode()).hexdigest()[:20]
+        item = unique.setdefault(
+            hashes,
+            {
+                "key": f"candidate_{key}",
+                "aliases": [],
+                "groups": {
+                    group: {
+                        "source": str(paths[group].relative_to(run_root)),
+                        "sha256": hashes[index],
+                        "count": metadata[group][0],
+                        "ids_sha256": metadata[group][1],
+                    }
+                    for index, group in enumerate(GROUPS)
+                },
+            },
+        )
+        item["aliases"].append(str(arm.relative_to(run_root)))
+        alias_count += 1
     items = sorted(unique.values(), key=lambda item: item["key"])
     if not items:
         raise ValueError(f"No complete harmful response pairs found below {run_root}")
@@ -84,6 +104,7 @@ def discover(run_root: Path) -> dict:
         "groups": list(GROUPS),
         "source_fingerprint": source_fingerprint,
         "alias_count": alias_count,
+        "skipped_non_response_pair_count": skipped_non_response_pairs,
         "unique_candidate_count": len(items),
         "judgment_count": sum(
             group["count"] for item in items for group in item["groups"].values()
@@ -122,10 +143,15 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--run-root", type=Path, required=True)
     parser.add_argument("--output-root", type=Path, required=True)
+    parser.add_argument(
+        "--all-pairs",
+        action="store_true",
+        help="Find complete response pairs in any directory, not only raw/ arms.",
+    )
     args = parser.parse_args()
     run_root = args.run_root.resolve()
     output_root = args.output_root.resolve()
-    manifest = discover(run_root)
+    manifest = discover(run_root, all_pairs=args.all_pairs)
     materialize(run_root, output_root, manifest)
     print(
         json.dumps(
@@ -134,6 +160,9 @@ def main() -> int:
                 "alias_count": manifest["alias_count"],
                 "unique_candidate_count": manifest["unique_candidate_count"],
                 "judgment_count": manifest["judgment_count"],
+                "skipped_non_response_pair_count": manifest[
+                    "skipped_non_response_pair_count"
+                ],
                 "source_fingerprint": manifest["source_fingerprint"],
             },
             sort_keys=True,
