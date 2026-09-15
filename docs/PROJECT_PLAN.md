@@ -91,9 +91,11 @@ Do not use the final test until one candidate and its settings are frozen.
 
 ## Execution order
 
-Stage 0, Stage 1, and Stage 2 are complete. The next action is the repeated Stage 3 live validation.
+Stages 0 through 4 are complete. Stage 5, the reversible behavior screen, is active.
 
-Live status: Stage 1 and Stage 2 passed on Vast instance `51065040`, an A100 SXM4 80 GB rental at about $1.102/hour. The base checkpoint download completed. The first load found slow reference kernels, so capture was stopped before measurement. The environment now uses PyTorch 2.9.1 with CUDA 12.8, `causal-conv1d` 1.7.0, and `flash-linear-attention` 0.5.2. Stage 3 validation must pass again before capture restarts.
+Live status: Vast instance `51065040` is an A100 SXM4 80 GB rental at about $1.102/hour. The base checkpoint passed live architecture validation with PyTorch 2.9.1, CUDA 12.8, `causal-conv1d` 1.7.0, and `flash-linear-attention` 0.5.2. Activation capture and analysis of all 40 direction candidates completed. The capture and direction artifacts were copied locally and their remote and local SHA-256 hashes matched. The reversible screen compares the base with `matched_layer_38_plain` and `standard_layer_38_plain`. It is still running. Do not use the final-test split or create a permanent checkpoint yet.
+
+The local dashboard is at <http://127.0.0.1:8765/> while its server and updater are running. Start or restore it with the commands in `dashboard/README.md`. It contains only safe aggregate status and results.
 
 ### Stage 0: Finish local controls
 
