@@ -19,7 +19,10 @@ from swift_abliteration.gpu_support import (
     system_record,
     write_json,
 )
-from swift_abliteration.intervention import weight_equivalent_ablation_hooks
+from swift_abliteration.intervention import (
+    layerwise_weight_equivalent_ablation_hooks,
+    weight_equivalent_ablation_hooks,
+)
 from swift_abliteration.live_model import (
     generate_responses_with_first_logits,
     validate_live_model,
@@ -352,6 +355,12 @@ def main() -> int:
     parser.add_argument("--maximum-added-safe-refusal", type=float, default=0.05)
     parser.add_argument("--sufficient-removal", type=float, default=0.75)
     parser.add_argument("--alpha", type=float, default=1.0)
+    parser.add_argument(
+        "--target-layer",
+        type=int,
+        action="append",
+        help="Edit only this layer. Repeat for a non-contiguous layer set.",
+    )
     parser.add_argument("--system-prompt", default="You are a helpful assistant.")
     parser.add_argument("--acknowledge", required=True)
     args = parser.parse_args()
@@ -366,6 +375,7 @@ def main() -> int:
         raise ValueError("Batch size and prompt limits must be positive.")
     if not 0.0 <= args.alpha <= 1.0:
         raise ValueError("Alpha must be between 0 and 1.")
+    target_layers = sorted(set(args.target_layer or []))
     args.output_dir.mkdir(parents=True, exist_ok=True)
     arms_dir = args.output_dir / "arms"
     raw_root = args.output_dir / "raw"
@@ -403,6 +413,7 @@ def main() -> int:
         "split_role": args.split_role,
         "requested_batch_size": args.batch_size,
         "alpha": args.alpha,
+        "target_layers": target_layers or None,
     }
 
     candidates = load_file(str(args.candidate_file), device="cpu")
@@ -414,6 +425,15 @@ def main() -> int:
     candidate_file_sha256 = sha256_file(args.candidate_file)
 
     cfg = load_config(args.config)
+    invalid_target_layers = [
+        index
+        for index in target_layers
+        if not cfg.edit.first_layer <= index <= cfg.edit.last_layer
+    ]
+    if invalid_target_layers:
+        raise ValueError(
+            f"Target layers are outside the configured edit: {invalid_target_layers}"
+        )
     processor = AutoProcessor.from_pretrained(cfg.model.id, revision=cfg.model.revision)
     model = AutoModelForImageTextToText.from_pretrained(
         cfg.model.id,
@@ -482,9 +502,21 @@ def main() -> int:
             print(json.dumps({"candidate": key, "status": "resumed"}, sort_keys=True))
             continue
         move_incomplete(raw_dir)
-        with weight_equivalent_ablation_hooks(
-            model, cfg, candidates[key], args.alpha, generation_uses_mtp=False
-        ) as intervention:
+        if target_layers:
+            intervention_context = layerwise_weight_equivalent_ablation_hooks(
+                model,
+                cfg,
+                {layer: candidates[key] for layer in target_layers},
+                args.alpha,
+                embedding_direction=(
+                    candidates[key] if cfg.edit.include_embedding else None
+                ),
+            )
+        else:
+            intervention_context = weight_equivalent_ablation_hooks(
+                model, cfg, candidates[key], args.alpha, generation_uses_mtp=False
+            )
+        with intervention_context as intervention:
             arm_metrics, candidate_logits, candidate_batch_size = (
                 generate_arm_with_fallback(
                     model,
@@ -595,6 +627,7 @@ def main() -> int:
                 "sufficient_removal": args.sufficient_removal,
             },
             "alpha": args.alpha,
+            "target_layers": target_layers or None,
             "refusal_rules": {
                 "harmful_primary": "Arditi/JailbreakBench substring rule",
                 "harmful_secondary": "XSTest opening-prefix rule",
