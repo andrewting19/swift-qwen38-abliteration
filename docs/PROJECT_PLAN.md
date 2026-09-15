@@ -52,9 +52,9 @@ This produces 40 candidates.
 
 Rank candidates with bootstrap cosine stability, validation-set standardized separation, cross-source cosine agreement, and outlier sensitivity. Cluster separation is not sufficient. A candidate must also pass a causal reversible intervention.
 
-### Reversible causal screen
+### Reversible weight-equivalent screen
 
-For a small shortlist, remove the candidate direction from the residual state after every target layer. Compare the unchanged model and each candidate on validation prompts.
+For a small shortlist, project only the outputs of the residual-writing modules included in the planned checkpoint edit. Also project the embedding output when the planned edit includes the embedding. Compare the unchanged model and each candidate on validation prompts.
 
 Measure:
 
@@ -64,7 +64,7 @@ Measure:
 - Coherence.
 - Severe repetition and invalid output.
 
-The activation intervention is stronger than the planned weight edit. It tests whether the direction is causal. It does not predict the exact permanent-checkpoint result.
+For bias-free linear modules, this intervention is mathematically equivalent to the planned weight projection. Verify numerical equivalence before screening. Exclude checkpoint-only MTP from the runtime screen because the active Transformers generation path does not use it.
 
 ### Quick capability gate
 
@@ -76,7 +76,7 @@ Run the unchanged base and the best reversible candidate on:
 - WMDP-Cyber, 256 fixed items.
 - CyberMetric-80.
 
-Before rental, complete and locally validate a serving path that keeps reversible activation hooks active while these benchmark clients run.
+Before rental, complete and locally validate a serving path that keeps reversible module-output hooks active while these benchmark clients run.
 
 ### Provisional pass limits
 
@@ -93,11 +93,11 @@ Do not use the final test until one candidate and its settings are frozen.
 
 Stages 0 through 4 are complete. Stage 5, the reversible behavior screen, is active.
 
-Live status: Vast instance `51065040` is an A100 SXM4 80 GB rental at about $1.102/hour. The base checkpoint passed live architecture validation with PyTorch 2.9.1, CUDA 12.8, `causal-conv1d` 1.7.0, and `flash-linear-attention` 0.5.2. Activation capture and analysis of all 40 direction candidates completed. The capture and direction artifacts were copied locally and their remote and local SHA-256 hashes matched. The reversible screen compares the base with `matched_layer_38_plain` and `standard_layer_38_plain`. It is still running. Do not use the final-test split or create a permanent checkpoint yet.
+Live status: Vast instance `51065040` is an A100 SXM4 80 GB rental at about $1.102/hour. The base checkpoint passed live architecture validation with PyTorch 2.9.1, CUDA 12.8, `causal-conv1d` 1.7.0, and `flash-linear-attention` 0.5.2. Activation capture and analysis of all 40 direction candidates completed. The capture and direction artifacts were copied locally and their remote and local SHA-256 hashes matched. The first screen used whole-transformer-layer-output projection and was stopped after it was found not to be weight-equivalent. Preserve its completed matched-direction results as a stress test only. The next screen must first pass unit and live numerical equivalence checks, then test `consensus_layer_38_winsor_995` with module-output hooks. Do not use the final-test split or create a permanent checkpoint yet.
 
 The local dashboard is at <http://127.0.0.1:8765/> while its server and updater are running. Start or restore it with the commands in `dashboard/README.md`. It contains only safe aggregate status and results.
 
-An added consensus check uses only the saved layer-38 direction and validation activations. It compares the normalized standard/matched plain average with the normalized standard/matched winsor-995 average. The winsor-995 consensus was selected as the only added reversible arm. Its bootstrap median cosine is 0.9940. Its held-out standardized separation is 10.52 on the standard source and 9.68 on the matched source. The final-test split remains unused. Run this candidate as a separate 256-output arm only after the active plain-direction screen ends.
+An added consensus check uses only the saved layer-38 direction and validation activations. It compares the normalized standard/matched plain average with the normalized standard/matched winsor-995 average. The winsor-995 consensus was selected as the first weight-equivalent reversible arm. Its bootstrap median cosine is 0.9940. Its held-out standardized separation is 10.52 on the standard source and 9.68 on the matched source. The final-test split remains unused. Run this candidate as a separate 256-output arm only after the numerical equivalence checks pass.
 
 ### Stage 0: Finish local controls
 
@@ -140,13 +140,14 @@ An added consensus check uses only the saved layer-38 direction and validation a
 
 ### Stage 5: Reversible behavior screen
 
-1. Select a small candidate shortlist from direction and validation statistics.
-2. Generate fixed validation responses for the base and shortlisted candidates.
-3. Save harmless logits for KL.
-4. Run the fixed refusal and coherence judge on the validation outputs.
-5. Calculate validation refusal, over-refusal, KL, and coherence results.
-6. Freeze one candidate and its settings.
-7. Copy and hash all outputs locally.
+1. Verify that module-output hooks numerically match explicitly projected weight matrices.
+2. Select a small candidate shortlist from direction and validation statistics.
+3. Generate fixed validation responses for the base and shortlisted candidates.
+4. Save harmless logits for KL.
+5. Run the fixed refusal and coherence judge on the validation outputs.
+6. Calculate validation refusal, over-refusal, KL, and coherence results.
+7. Freeze one candidate and its settings.
+8. Copy and hash all outputs locally.
 
 ### Stage 6: Quick capability gate
 

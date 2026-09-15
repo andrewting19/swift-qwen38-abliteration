@@ -1,5 +1,6 @@
 import sys
 import unittest
+import copy
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -19,6 +20,71 @@ from swift_abliteration.config import (
 
 @unittest.skipIf(torch is None, "torch is not installed")
 class LiveModelTests(unittest.TestCase):
+    def test_weight_equivalent_hooks_match_explicit_projected_weights(self):
+        from swift_abliteration.intervention import weight_equivalent_ablation_hooks
+        from swift_abliteration.live_model import apply_edit
+
+        class LinearAttention(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.out_proj = torch.nn.Linear(6, 4, bias=True)
+
+        class MLP(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.down_proj = torch.nn.Linear(8, 4, bias=True)
+
+        class Layer(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.linear_attn = LinearAttention()
+                self.mlp = MLP()
+
+        class Backbone(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.embed_tokens = torch.nn.Embedding(16, 4)
+                self.layers = torch.nn.ModuleList([Layer()])
+
+        class Root(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.model = torch.nn.Module()
+                self.model.language_model = Backbone()
+
+            def get_output_embeddings(self):
+                return None
+
+        cfg = ExperimentConfig(
+            name="equivalence",
+            seed=1,
+            model=ModelSpec("fake", "fake", "fake", "fake", 4, 8, 16, 6, 1, 1, 0),
+            direction=DirectionSpec(0, 1, "plain", 2, 2, True, "disabled"),
+            edit=EditSpec(1.0, 0, 0, True, True, True, False, "float32", "bfloat16", True),
+        )
+        hooked = Root()
+        edited = copy.deepcopy(hooked)
+        direction = torch.tensor([1.0, 2.0, -1.0, 0.5])
+        token_ids = torch.tensor([[1, 4, 7]])
+        attention_input = torch.randn(1, 3, 6)
+        mlp_input = torch.randn(1, 3, 8)
+        with weight_equivalent_ablation_hooks(hooked, cfg, direction) as record:
+            hooked_outputs = (
+                hooked.model.language_model.embed_tokens(token_ids),
+                hooked.model.language_model.layers[0].linear_attn.out_proj(attention_input),
+                hooked.model.language_model.layers[0].mlp.down_proj(mlp_input),
+            )
+        apply_edit(edited, cfg, direction)
+        edited_outputs = (
+            edited.model.language_model.embed_tokens(token_ids),
+            edited.model.language_model.layers[0].linear_attn.out_proj(attention_input),
+            edited.model.language_model.layers[0].mlp.down_proj(mlp_input),
+        )
+        for observed, expected in zip(hooked_outputs, edited_outputs, strict=True):
+            torch.testing.assert_close(observed, expected, atol=1e-6, rtol=1e-6)
+        self.assertEqual(record["module_count"], 3)
+        self.assertEqual(len(record["bias_modules"]), 2)
+
     def test_checkpoint_shard_edit_includes_checkpoint_only_mtp(self):
         from swift_abliteration.checkpoint_edit import edit_shard_tensors
 

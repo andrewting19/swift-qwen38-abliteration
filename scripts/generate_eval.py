@@ -7,16 +7,18 @@ import json
 from contextlib import nullcontext
 from pathlib import Path
 
+from swift_abliteration.config import load_config
 from swift_abliteration.gpu_support import (
     read_prompt_jsonl,
     require_acknowledgement,
     require_large_gpu,
 )
-from swift_abliteration.intervention import activation_ablation_hooks
+from swift_abliteration.intervention import weight_equivalent_ablation_hooks
 from swift_abliteration.live_model import (
     capture_last_token_logits,
     render_prompt,
     text_backbone,
+    validate_live_model,
 )
 
 
@@ -36,6 +38,7 @@ def parse_layers(value: str) -> list[int]:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--config", default="configs/orca_style_full.toml")
     parser.add_argument("--model", required=True)
     parser.add_argument("--revision")
     parser.add_argument("--prompts", required=True)
@@ -60,6 +63,9 @@ def main() -> int:
     import torch
     from transformers import AutoModelForImageTextToText, AutoProcessor
 
+    cfg = load_config(args.config)
+    if args.model != cfg.model.id or args.revision != cfg.model.revision:
+        raise RuntimeError("Model and revision must match the configured edit target.")
     prompts, prompt_hash = read_prompt_jsonl(args.prompts)
     processor = AutoProcessor.from_pretrained(args.model, revision=args.revision)
     tokenizer = getattr(processor, "tokenizer", processor)
@@ -71,6 +77,7 @@ def main() -> int:
         low_cpu_mem_usage=True,
     )
     model.eval()
+    validate_live_model(model, cfg)
     device = text_backbone(model).embed_tokens.weight.device
     hook_context = nullcontext()
     if bool(args.directions) != bool(args.direction_key):
@@ -85,11 +92,18 @@ def main() -> int:
         tensors = load_file(args.directions, device="cpu")
         if args.direction_key not in tensors:
             raise RuntimeError(f"Direction key is not present: {args.direction_key}")
-        hook_context = activation_ablation_hooks(
+        layers = parse_layers(args.intervention_layers)
+        expected_layers = list(range(cfg.edit.first_layer, cfg.edit.last_layer + 1))
+        if layers != expected_layers:
+            raise RuntimeError(
+                "Intervention layers must match the configured checkpoint edit range."
+            )
+        hook_context = weight_equivalent_ablation_hooks(
             model,
+            cfg,
             tensors[args.direction_key],
-            parse_layers(args.intervention_layers),
             args.intervention_alpha,
+            generation_uses_mtp=False,
         )
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)

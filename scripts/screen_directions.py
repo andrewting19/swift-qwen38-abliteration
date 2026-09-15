@@ -16,7 +16,7 @@ from swift_abliteration.gpu_support import (
     system_record,
     write_json,
 )
-from swift_abliteration.intervention import activation_ablation_hooks
+from swift_abliteration.intervention import weight_equivalent_ablation_hooks
 from swift_abliteration.live_model import (
     capture_last_token_logits,
     render_prompt,
@@ -170,9 +170,13 @@ def main() -> int:
         )
     for key in args.direction_key:
         measured_layer = direction_layer(key)
-        with activation_ablation_hooks(
-            model, directions[key], intervention_layers, args.alpha
-        ):
+        with weight_equivalent_ablation_hooks(
+            model,
+            cfg,
+            directions[key],
+            args.alpha,
+            generation_uses_mtp=False,
+        ) as intervention_record:
             arms[key] = run_arm(
                 model,
                 processor,
@@ -183,6 +187,7 @@ def main() -> int:
             )
         arms[key]["direction_layer"] = measured_layer
         arms[key]["intervention_layers"] = intervention_layers
+        arms[key]["intervention"] = intervention_record
         arms[key]["alpha"] = args.alpha
     write_json(
         output / "screen_manifest.json",

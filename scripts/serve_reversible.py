@@ -14,7 +14,7 @@ from swift_abliteration.gpu_support import (
     system_record,
     write_json,
 )
-from swift_abliteration.intervention import activation_ablation_hooks
+from swift_abliteration.intervention import weight_equivalent_ablation_hooks
 from swift_abliteration.live_model import validate_live_model
 from swift_abliteration.reversible_server import (
     TransformersGenerationEngine,
@@ -81,8 +81,17 @@ def main() -> int:
         if args.direction_key not in directions:
             raise RuntimeError(f"Direction key is not present: {args.direction_key}")
         layers = parse_layers(args.intervention_layers)
-        hook_context = activation_ablation_hooks(
-            model, directions[args.direction_key], layers, args.alpha
+        expected_layers = list(range(cfg.edit.first_layer, cfg.edit.last_layer + 1))
+        if layers != expected_layers:
+            raise RuntimeError(
+                "Intervention layers must match the configured checkpoint edit range."
+            )
+        hook_context = weight_equivalent_ablation_hooks(
+            model,
+            cfg,
+            directions[args.direction_key],
+            args.alpha,
+            generation_uses_mtp=False,
         )
         direction_record = {
             "file": str(Path(args.directions).resolve()),
@@ -90,6 +99,9 @@ def main() -> int:
             "key": args.direction_key,
             "layers": layers,
             "alpha": args.alpha,
+            "type": "weight_equivalent_module_output_projection",
+            "embedding_included": cfg.edit.include_embedding,
+            "mtp_included": False,
         }
 
     write_json(

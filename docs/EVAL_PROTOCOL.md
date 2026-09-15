@@ -30,9 +30,11 @@ Report the mean, median, 90th percentile, 95th percentile, and maximum. This is 
 
 ## Quick capability gate
 
-Use reversible activation ablation across the edit arm's target-layer range to screen every direction candidate on the two refusal sets and the harmless KL set. This requires no checkpoint write. Run the quick capability gate on the small number of candidates that pass that screen:
+Use reversible module-output projection to screen every direction candidate on the two refusal sets and the harmless KL set. Hook only the token embedding and the attention and MLP output modules whose weights the planned checkpoint edit changes. This requires no checkpoint write. Run the quick capability gate on the small number of candidates that pass that screen:
 
-This activation intervention removes the direction from the full residual state after each target layer. It is stronger than removing only the direction that each weight matrix can write. It is a causal direction test, not an exact simulation of the permanent weight edit.
+For each bias-free residual writer, projecting its module output is mathematically equivalent to left-projecting its weight matrix. If a module has a bias, project only the weight-produced part and add the unchanged bias back. The Transformers generation path does not execute the checkpoint-only MTP module, so the reversible runtime screen excludes MTP and records this fact. The permanent editor can still change the MTP weights later.
+
+Earlier transformer-layer-output hooks projected the direction from the complete residual state after every layer. This was not weight-equivalent. Preserve their completed results only as a whole-residual stress test. Do not use them to select or reject a checkpoint weight edit.
 
 - 500 fixed MMLU-Pro examples.
 - 256 fixed GSM8K chain-of-thought examples.
