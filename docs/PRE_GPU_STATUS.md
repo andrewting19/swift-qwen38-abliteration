@@ -27,7 +27,7 @@ The authoritative project state and restart instructions are in `docs/PROJECT_PL
 
 - Separate candidate-validation and final-test splits are pinned and disjoint.
 - The OpenAI-compatible reversible benchmark server has local API tests.
-- The fixed judge is `gpt-5-nano` with minimal reasoning and JSON output. A harmless API check passed.
+- The initial judge path used `gpt-5-nano` with minimal reasoning and JSON output. A harmless API check passed. Live results later showed low confidence and poor cross-judge agreement, so the recorded evaluation amendment uses repeated `gpt-5.6-luna` high passes with xhigh tie-breaks.
 - The Vast account reported about $18.49 credit before rental. The user authorized use of the available balance.
 - The Linux GPU environment uses PyTorch 2.9.1 with CUDA 12.8, `causal-conv1d` 1.7.0, and `flash-linear-attention` 0.5.2. This avoids the slow reference implementation used when the optimized Qwen kernels are absent.
 

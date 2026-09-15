@@ -101,7 +101,7 @@ The local dashboard is at <http://127.0.0.1:8765/> while its server and updater 
 
 1. Verify the separate validation and final-test prompt splits without printing harmful text.
 2. Verify the reversible benchmark serving path.
-3. Verify the fixed `gpt-5-nano` judge with minimal reasoning and JSON output.
+3. Verify the external structured-output judge path. The live protocol amendment replaces the low-confidence nano labels with two Luna high passes and an xhigh tie-break for binary disagreement.
 4. Run all unit tests, command checks, prompt hashes, and package checks.
 5. Run a live Vast offer search.
 6. Record the current credit balance and keep enough credit for artifact transfer and shutdown.
@@ -163,7 +163,7 @@ The local dashboard is at <http://127.0.0.1:8765/> while its server and updater 
 
 ### Stage 8: Offline scoring and report
 
-1. Use the fixed external LLM judge for refusal and coherence labels.
+1. Use the recorded repeated-Luna protocol for refusal and coherence labels.
 2. Manually audit 20 fixed items per arm and every low-confidence judgment.
 3. Calculate refusal, over-refusal, KL, coherence, capability, uncertainty, and cost summaries.
 4. Write a direction-quality report and a final evaluation report.
