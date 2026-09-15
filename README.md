@@ -2,10 +2,11 @@
 
 This private research repository contains a controlled refusal-direction experiment for `ukisai/Swift-Qwen3.8-27b`.
 
-The GPU experiment is complete. The best reversible six-direction edit passed the refusal-removal, matched-harmless, invalid-output, deterministic quality, and three measured capability gates. It failed the fixed mean-KL gate. No permanent checkpoint was written and the final-test split was not used.
-
-The planned low-cost rank-1 rerun is in `docs/RANK1_RERUN_PLAN.md`. It is not a
-claim that the existing six-direction candidate passed all gates.
+The latest GPU experiment tested one reversible rank-1 edit. It passed the
+refusal-language, clean harmless-KL, over-refusal, output-quality, and three
+measured capability gates. It failed the fixed HarmBench behavior-completion
+gate. This disagreement requires manual response review. No permanent checkpoint
+was written and the final-test split was not used.
 
 ## Current state
 
@@ -21,7 +22,11 @@ claim that the existing six-direction candidate passed all gates.
 - The exact Orca massive-activation mask is not implemented because its rule and threshold are not public.
 - The recovery code includes iterative directions, source-specific branches, alpha screening, capability checks, and aggregate-only local judge reports.
 
-Read [docs/RECOVERY_POSTMORTEM.md](docs/RECOVERY_POSTMORTEM.md) for the result and causes. Read [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md) for the full plan and [infra/vast/RUNBOOK.md](infra/vast/RUNBOOK.md) before another GPU rental.
+Read [docs/RANK1_VALIDATION_RESULT.md](docs/RANK1_VALIDATION_RESULT.md) for the
+current result. Read [docs/RECOVERY_POSTMORTEM.md](docs/RECOVERY_POSTMORTEM.md)
+for the earlier six-direction recovery, [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md)
+for the full plan, and [infra/vast/RUNBOOK.md](infra/vast/RUNBOOK.md) before
+another GPU rental.
 
 ## Local checks
 
