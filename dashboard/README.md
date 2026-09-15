@@ -12,6 +12,10 @@ only the dashboard, `/status.json`, the comparison page at `/compare`, and a
 fixed allowlist of before/after experiment artifacts. It does not expose the
 repository tree.
 
+The safe-only KL review is available at `/safe-kl`. It exposes only the harmless
+base and candidate response files and safe aggregate metadata from the current
+generation search.
+
 The comparison page displays raw prompts and responses from the saved base and
 final-candidate runs. Harmful prompt text is collapsed by default. All content
 stays on the local machine.

@@ -14,6 +14,7 @@ subset_ack=I_UNDERSTAND_THIS_LOADS_AND_EDITS_A_55GB_MODEL
 subset_mlp_args=()
 subset_early_linear_args=()
 subset_late_linear_args=()
+subset_linear_quarters=("" "" "" "")
 
 for subset_layer in $(seq 32 63); do
   subset_mlp_args+=(--mlp-layer "$subset_layer")
@@ -23,6 +24,8 @@ for subset_layer in $(seq 32 63); do
     else
       subset_late_linear_args+=(--attention-layer "$subset_layer")
     fi
+    subset_quarter=$(((subset_layer - 32) / 8))
+    subset_linear_quarters[$subset_quarter]+=" --attention-layer $subset_layer"
   fi
 done
 
@@ -56,3 +59,18 @@ run_subset late_half_mlp_with_early_linear_attention \
   "${subset_early_linear_args[@]}"
 run_subset late_half_mlp_with_late_linear_attention \
   "${subset_late_linear_args[@]}"
+
+for subset_excluded_quarter in 0 1 2 3; do
+  subset_three_quarter_args=()
+  for subset_quarter in 0 1 2 3; do
+    if (( subset_quarter == subset_excluded_quarter )); then
+      continue
+    fi
+    read -r -a subset_quarter_args <<< "${subset_linear_quarters[$subset_quarter]}"
+    subset_three_quarter_args+=("${subset_quarter_args[@]}")
+  done
+  subset_first_excluded=$((32 + 8 * subset_excluded_quarter))
+  subset_last_excluded=$((subset_first_excluded + 7))
+  run_subset "late_half_mlp_linear_except_${subset_first_excluded}_${subset_last_excluded}" \
+    "${subset_three_quarter_args[@]}"
+done

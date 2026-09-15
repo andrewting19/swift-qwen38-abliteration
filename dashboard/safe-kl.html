@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Swift Qwen3.8 · Safe response changes</title>
+  <style>
+    :root { color-scheme:dark; --bg:#080d18; --panel:#111a2c; --line:#293754; --text:#edf3ff; --muted:#9cabc6; --cyan:#6be6dc; --blue:#8eadff; --amber:#f5c96d; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:radial-gradient(850px 480px at 75% -10%,#203b69 0%,transparent 65%),var(--bg); color:var(--text); font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,sans-serif; }
+    main { width:min(1460px,calc(100% - 28px)); margin:auto; padding:28px 0 60px; }
+    h1,h2,p { margin:0; } h1 { font-size:clamp(27px,4vw,41px); letter-spacing:-.035em; }
+    .eyebrow { color:var(--cyan); text-transform:uppercase; letter-spacing:.14em; font-size:11px; font-weight:800; margin-bottom:7px; }
+    .sub,.note { color:var(--muted); margin-top:8px; max-width:980px; }
+    .note { padding:12px 14px; border:1px solid #65542b; border-radius:12px; background:#3a301866; color:#eed594; }
+    .summary { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin:18px 0; }
+    .stat,.row { border:1px solid var(--line); border-radius:14px; background:linear-gradient(145deg,#16223aee,#0e1729ee); }
+    .stat { padding:14px; } .stat small { display:block; color:var(--muted); margin-bottom:5px; } .stat strong { font-size:20px; }
+    .toolbar { position:sticky; top:0; z-index:3; display:flex; gap:10px; align-items:center; margin:0 0 14px; padding:12px; border:1px solid var(--line); border-radius:13px; background:#0d1627ee; backdrop-filter:blur(12px); }
+    button { min-height:36px; border:1px solid #39726f; border-radius:9px; background:#123b3c; color:var(--cyan); padding:7px 12px; font-weight:750; cursor:pointer; }
+    .count { margin-left:auto; color:var(--muted); }
+    .rows { display:grid; gap:13px; } .row { overflow:hidden; }
+    .rowhead { display:flex; gap:9px; align-items:center; padding:11px 14px; background:#18243c; border-bottom:1px solid var(--line); }
+    .rank { color:var(--blue); font:700 12px ui-monospace,SFMono-Regular,Menlo,monospace; }
+    .score { margin-left:auto; color:var(--amber); font-weight:750; }
+    .prompt { padding:12px 14px; border-bottom:1px solid var(--line); color:#d8e2f5; white-space:pre-wrap; }
+    .pair { display:grid; grid-template-columns:1fr 1fr; }
+    .answer { min-width:0; padding:15px; } .answer + .answer { border-left:1px solid var(--line); }
+    .answer h2 { color:var(--muted); font-size:12px; margin-bottom:9px; text-transform:uppercase; letter-spacing:.05em; }
+    .response { white-space:pre-wrap; overflow-wrap:anywhere; font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,monospace; }
+    .error { border:1px solid #7e3440; background:#401b2466; color:#ffb2bc; border-radius:12px; padding:13px; }
+    @media (max-width:800px) { .summary { grid-template-columns:1fr 1fr; } .pair { grid-template-columns:1fr; } .answer + .answer { border-left:0; border-top:1px solid var(--line); } }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">Safe-only review</div>
+    <h1>Harmless response changes</h1>
+    <p class="sub">Base Swift-Qwen3.8-27B versus the full-strength matched layer-52 rank-1 intervention. This page contains no harmful prompts or harmful responses.</p>
+    <p class="note" id="method-note">The current saved run has only aggregate KL. Rows are temporarily ranked by visible response-text change, not by per-prompt KL. A new instrumented run will add exact per-prompt KL.</p>
+    <section id="summary" class="summary"></section>
+    <div class="toolbar"><button id="reload" type="button">Reload</button><span class="count" id="count">Loading…</span></div>
+    <section id="rows" class="rows"><div class="stat">Loading safe artifacts…</div></section>
+  </main>
+  <script>
+    const $=id=>document.getElementById(id);
+    async function json(url) { const r=await fetch(url,{cache:'no-store'}); if(!r.ok) throw new Error(`${url}: HTTP ${r.status}`); return r.json(); }
+    async function jsonl(url) { const r=await fetch(url,{cache:'no-store'}); if(!r.ok) throw new Error(`${url}: HTTP ${r.status}`); return (await r.text()).split(/\r?\n/).filter(Boolean).map(JSON.parse); }
+    const words=text=>new Set((text.toLowerCase().match(/[a-z0-9]+/g)||[]));
+    function textChange(a,b) { const x=words(a),y=words(b),union=new Set([...x,...y]); if(!union.size) return 0; let common=0; for(const token of x) if(y.has(token)) common++; return 1-common/union.size; }
+    function stat(label,value) { const d=document.createElement('div'); d.className='stat'; const a=document.createElement('small'); a.textContent=label; const b=document.createElement('strong'); b.textContent=value; d.append(a,b); return d; }
+    function answer(title,text) { const a=document.createElement('article'); a.className='answer'; const h=document.createElement('h2'); h.textContent=title; const r=document.createElement('div'); r.className='response'; r.textContent=text||'[Empty response]'; a.append(h,r); return a; }
+    async function load() {
+      try {
+        const [base,candidate,meta]=await Promise.all([jsonl('/safe-kl-data/base.jsonl'),jsonl('/safe-kl-data/candidate.jsonl'),json('/safe-kl-data/metadata.json')]);
+        const cm=new Map(candidate.map(x=>[String(x.id),x]));
+        const values=Array.isArray(meta.kl_values)?meta.kl_values:[];
+        const rows=base.filter(x=>cm.has(String(x.id))).map((x,index)=>({base:x,candidate:cm.get(String(x.id)),change:textChange(x.response,cm.get(String(x.id)).response),kl:values[index]})).sort((a,b)=>values.length?b.kl-a.kl:b.change-a.change);
+        $('method-note').textContent=values.length?'Rows are ranked by exact first-token KL from the base distribution to the edited distribution. Full answers are shown to help interpret each distribution change.':'The current saved run has only aggregate KL. Rows are temporarily ranked by visible response-text change, not by per-prompt KL. A new instrumented run will add exact per-prompt KL.';
+        $('summary').replaceChildren(stat('Safe examples',String(rows.length)),stat('Mean KL',Number(meta.mean_kl).toFixed(4)),stat('Median KL',Number(meta.median_kl).toFixed(4)),stat('Maximum KL',Number(meta.maximum_kl).toFixed(4)));
+        const root=$('rows'); root.replaceChildren();
+        rows.forEach((row,index)=>{ const card=document.createElement('article'); card.className='row'; const head=document.createElement('div'); head.className='rowhead'; const rank=document.createElement('span'); rank.className='rank'; rank.textContent=`${values.length?'KL':'Visible-change'} rank ${index+1} · row ${row.base.id}`; const score=document.createElement('span'); score.className='score'; score.textContent=values.length?`KL ${row.kl.toFixed(4)} · text change ${(100*row.change).toFixed(0)}%`:`Text change ${(100*row.change).toFixed(0)}%`; head.append(rank,score); const prompt=document.createElement('div'); prompt.className='prompt'; prompt.textContent=row.base.prompt; const pair=document.createElement('div'); pair.className='pair'; pair.append(answer('Before · base',row.base.response),answer('After · intervention',row.candidate.response)); card.append(head,prompt,pair); root.append(card); });
+        $('count').textContent=`Showing ${rows.length} harmless rows`;
+      } catch(error) { const node=document.createElement('div'); node.className='error'; node.textContent=`Could not load safe review: ${error.message}`; $('rows').replaceChildren(node); $('count').textContent='Load failed'; }
+    }
+    $('reload').addEventListener('click',load); load();
+  </script>
+</body>
+</html>

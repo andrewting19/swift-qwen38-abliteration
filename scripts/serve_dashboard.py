@@ -15,6 +15,7 @@ DEFAULT_STATUS = ROOT / "runs/gpu/20260914-a100-51065040/status.json"
 
 BASE_RUN = ROOT / "runs/gpu/20260914-a100-51065040"
 FINAL_RUN = ROOT / "runs/gpu/20260915-a100-51081304"
+SAFE_KL_REVIEW = ROOT / "runs/local-safe-kl-review"
 
 
 def comparison_files() -> dict[str, Path]:
@@ -85,6 +86,15 @@ def capability_files() -> dict[str, Path]:
     }
 
 
+def safe_kl_files() -> dict[str, Path]:
+    """Return safe-only files for the high-KL response review."""
+    return {
+        "/safe-kl-data/base.jsonl": SAFE_KL_REVIEW / "base.jsonl",
+        "/safe-kl-data/candidate.jsonl": SAFE_KL_REVIEW / "candidate.jsonl",
+        "/safe-kl-data/metadata.json": SAFE_KL_REVIEW / "metadata.json",
+    }
+
+
 class DashboardHandler(http.server.BaseHTTPRequestHandler):
     """Serve an explicit allowlist so other repository data is not web-accessible."""
 
@@ -94,6 +104,8 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
     comparison_data: dict[str, Path]
     capability_path: Path
     capability_data: dict[str, Path]
+    safe_kl_path: Path
+    safe_kl_data: dict[str, Path]
 
     def do_HEAD(self) -> None:
         self._serve(send_body=False)
@@ -112,6 +124,9 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
         elif request_path in {"/capability", "/capability/", "/capability.html"}:
             path = self.capability_path
             cache_control = "no-cache"
+        elif request_path in {"/safe-kl", "/safe-kl/", "/safe-kl.html"}:
+            path = self.safe_kl_path
+            cache_control = "no-cache"
         elif request_path == "/status.json":
             path = self.status_path
             cache_control = "no-store"
@@ -120,6 +135,9 @@ class DashboardHandler(http.server.BaseHTTPRequestHandler):
             cache_control = "no-store"
         elif request_path in self.capability_data:
             path = self.capability_data[request_path]
+            cache_control = "no-store"
+        elif request_path in self.safe_kl_data:
+            path = self.safe_kl_data[request_path]
             cache_control = "no-store"
         else:
             self.send_error(http.HTTPStatus.NOT_FOUND)
@@ -158,6 +176,8 @@ def main() -> None:
             "comparison_data": comparison_files(),
             "capability_path": ROOT / "dashboard/capability.html",
             "capability_data": capability_files(),
+            "safe_kl_path": ROOT / "dashboard/safe-kl.html",
+            "safe_kl_data": safe_kl_files(),
         },
     )
     server = http.server.ThreadingHTTPServer((args.host, args.port), handler)

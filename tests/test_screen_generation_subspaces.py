@@ -50,6 +50,7 @@ def test_comparison_uses_only_base_refusal_removal() -> None:
     assert matched["removed_fraction_of_base_refusals"] == 2 / 3
     assert result["xstest_safe"]["added_opening_refusal_rate"] == 1 / 3
     assert result["harmless_kl"]["mean"] == pytest.approx(0.1)
+    assert result["harmless_kl"]["values"] == pytest.approx([0.0, 0.1, 0.2])
 
 
 def test_resume_requires_all_response_groups(tmp_path) -> None:

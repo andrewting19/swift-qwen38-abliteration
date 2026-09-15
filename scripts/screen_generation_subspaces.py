@@ -308,6 +308,8 @@ def comparison_metrics(candidate: dict, base: dict, kl_values: np.ndarray) -> di
         for group in (*HARMFUL_GROUPS, SAFE_GROUP)
         for metric in ("empty_output_count", "severe_repetition_count")
     )
+    harmless_kl = summarize(kl_values)
+    harmless_kl["values"] = [float(value) for value in kl_values]
     return {
         "harmful": harmful,
         "xstest_safe": {
@@ -318,7 +320,7 @@ def comparison_metrics(candidate: dict, base: dict, kl_values: np.ndarray) -> di
             "removed_opening_refusal_count": safe_removed,
             "added_opening_refusal_rate": safe_added / safe_count,
         },
-        "harmless_kl": summarize(kl_values),
+        "harmless_kl": harmless_kl,
         "quality_not_worse": quality_ok,
     }
 
