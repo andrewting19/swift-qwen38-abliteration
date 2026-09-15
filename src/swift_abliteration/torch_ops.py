@@ -31,34 +31,44 @@ def calculate_direction(harmful: Iterable[Any], harmless: Iterable[Any]):
 def project_output_weight_(
     weight: Any, direction: Any, alpha: float, column_chunk: int = 1024
 ) -> None:
-    """Edit a [hidden, input] tensor with bounded FP32 temporary memory."""
+    """Edit a [hidden, input] tensor by one direction or a row subspace."""
     torch = require_torch()
     r = direction.detach().to(device=weight.device, dtype=torch.float32)
-    r = r / torch.linalg.vector_norm(r)
-    if weight.ndim != 2 or weight.shape[0] != r.numel():
+    if r.ndim == 1:
+        r = (r / torch.linalg.vector_norm(r).clamp_min(1e-12)).unsqueeze(0)
+    elif r.ndim == 2 and r.shape[0] > 0:
+        r = torch.linalg.qr(r.transpose(0, 1), mode="reduced").Q.transpose(0, 1)
+    else:
+        raise ValueError("Direction must be a vector or a nonempty row subspace.")
+    if weight.ndim != 2 or weight.shape[0] != r.shape[1]:
         raise ValueError("Output weight shape does not match the direction.")
     with torch.no_grad():
         for start in range(0, weight.shape[1], column_chunk):
             stop = min(start + column_chunk, weight.shape[1])
             block = weight[:, start:stop].float()
-            block.sub_(r[:, None] * (r @ block)[None, :], alpha=alpha)
+            block.sub_(r.transpose(0, 1) @ (r @ block), alpha=alpha)
             weight[:, start:stop].copy_(block.to(dtype=weight.dtype))
 
 
 def project_embedding_rows_(
     weight: Any, direction: Any, alpha: float, row_chunk: int = 1024
 ) -> None:
-    """Edit a [vocab, hidden] tensor with bounded FP32 temporary memory."""
+    """Edit a [vocab, hidden] tensor by one direction or a row subspace."""
     torch = require_torch()
     r = direction.detach().to(device=weight.device, dtype=torch.float32)
-    r = r / torch.linalg.vector_norm(r)
-    if weight.ndim != 2 or weight.shape[1] != r.numel():
+    if r.ndim == 1:
+        r = (r / torch.linalg.vector_norm(r).clamp_min(1e-12)).unsqueeze(0)
+    elif r.ndim == 2 and r.shape[0] > 0:
+        r = torch.linalg.qr(r.transpose(0, 1), mode="reduced").Q.transpose(0, 1)
+    else:
+        raise ValueError("Direction must be a vector or a nonempty row subspace.")
+    if weight.ndim != 2 or weight.shape[1] != r.shape[1]:
         raise ValueError("Embedding shape does not match the direction.")
     with torch.no_grad():
         for start in range(0, weight.shape[0], row_chunk):
             stop = min(start + row_chunk, weight.shape[0])
             block = weight[start:stop].float()
-            block.sub_((block @ r)[:, None] * r[None, :], alpha=alpha)
+            block.sub_((block @ r.transpose(0, 1)) @ r, alpha=alpha)
             weight[start:stop].copy_(block.to(dtype=weight.dtype))
 
 

@@ -33,6 +33,8 @@ The plain matched direction failed for a different reason. It produced 256 empty
 - Three rank-1 controls also produced only non-empty outputs. The best control was a global layer-52 consensus direction. It removed 3 of 16 standard and 6 of 16 matched refusals, with mean KL 0.084. It did not reach the 90% gate.
 - Six no-embedding rank-2 and rank-4 subspace arms completed. A simple refusal-phrase check found refusals in every harmful output. The incomplete rank-8 arm was stopped after 12 records because low-rank hook overhead made it too slow and the lower-rank arms had no early effect.
 - The layer-specific and subspace pilots did not project the token embedding output. This leaves a refusal component that later residual-writer projections cannot remove. The next pilots add an explicit embedding direction. The intervention remains exactly equivalent to projecting the embedding weight rows and the selected residual-writer output weights.
+- Adding the embedding projection improved the best global rank-1 arm, but it still removed only 25% of standard and 37.5% of matched refusals. Static global rank-2 and rank-4 subspaces did not improve refusal.
+- The next experiment is iterative. It applies the best layer-52 consensus direction, measures a new direction on the edited model using only the direction-training split, orthogonalizes the new direction against the existing basis, and repeats through rank 4. Each cumulative rank is screened on the frozen validation split.
 
 ## Controls
 

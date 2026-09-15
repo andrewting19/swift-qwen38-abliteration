@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 from .config import ExperimentConfig
@@ -180,6 +181,79 @@ def apply_runtime_edit(
         "mtp_exclusion_reason": None
         if not cfg.edit.include_mtp or generation_uses_mtp
         else "The active Transformers generation path does not execute MTP.",
+        "alpha": value,
+        "checkpoint_saved": False,
+    }
+
+
+def apply_layerwise_runtime_edit(
+    model: Any,
+    cfg: ExperimentConfig,
+    directions_by_layer: Mapping[int, Any],
+    alpha: float = 1.0,
+    *,
+    embedding_direction: Any | None = None,
+) -> dict[str, Any]:
+    """Apply one nonpersistent layerwise weight projection in memory."""
+    value = float(alpha)
+    if not 0.0 <= value <= 1.0:
+        raise ValueError("alpha must be between 0 and 1")
+    validate_live_model(model, cfg, require_mtp=False)
+    backbone = text_backbone(model)
+    assignments = {
+        int(index): direction for index, direction in directions_by_layer.items()
+    }
+    if not assignments:
+        raise ValueError("At least one layer direction is required.")
+    invalid = [
+        index
+        for index in assignments
+        if not cfg.edit.first_layer <= index <= cfg.edit.last_layer
+        or not 0 <= index < len(backbone.layers)
+    ]
+    if invalid:
+        raise ValueError(f"Layerwise intervention layers are outside the edit: {invalid}")
+
+    edited: list[str] = []
+    if embedding_direction is not None:
+        output_embeddings = model.get_output_embeddings()
+        if (
+            output_embeddings is not None
+            and output_embeddings.weight is backbone.embed_tokens.weight
+        ):
+            raise RuntimeError(
+                "The input embedding and output head are tied. The edit does not "
+                "include the output head."
+            )
+        project_embedding_rows_(backbone.embed_tokens.weight, embedding_direction, value)
+        edited.append("model.language_model.embed_tokens.weight")
+
+    for index, direction in sorted(assignments.items()):
+        layer = backbone.layers[index]
+        if cfg.edit.include_attention_output:
+            if hasattr(layer, "linear_attn"):
+                module = layer.linear_attn.out_proj
+                label = "linear_attn.out_proj"
+            else:
+                module = layer.self_attn.o_proj
+                label = "self_attn.o_proj"
+            project_output_weight_(module.weight, direction, value)
+            edited.append(f"model.language_model.layers.{index}.{label}.weight")
+        if cfg.edit.include_mlp_output:
+            project_output_weight_(layer.mlp.down_proj.weight, direction, value)
+            edited.append(f"model.language_model.layers.{index}.mlp.down_proj.weight")
+
+    return {
+        "type": "layerwise_in_memory_weight_projection",
+        "edited_tensor_count": len(edited),
+        "edited_tensors": edited,
+        "target_layers": sorted(assignments),
+        "ranks_by_layer": {
+            str(index): 1 if direction.ndim == 1 else int(direction.shape[0])
+            for index, direction in sorted(assignments.items())
+        },
+        "embedding_included": embedding_direction is not None,
+        "mtp_included": False,
         "alpha": value,
         "checkpoint_saved": False,
     }

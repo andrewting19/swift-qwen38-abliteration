@@ -20,6 +20,28 @@ from swift_abliteration.config import (
 
 @unittest.skipIf(torch is None, "torch is not installed")
 class LiveModelTests(unittest.TestCase):
+    def test_in_memory_weight_projection_supports_row_subspaces(self):
+        from swift_abliteration.torch_ops import (
+            project_embedding_rows_,
+            project_output_weight_,
+        )
+
+        basis = torch.tensor([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
+        output_weight = torch.tensor(
+            [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]
+        )
+        embedding = torch.tensor(
+            [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]
+        )
+        project_output_weight_(output_weight, basis, 1.0, column_chunk=1)
+        project_embedding_rows_(embedding, basis, 1.0, row_chunk=1)
+        torch.testing.assert_close(output_weight[:2], torch.zeros(2, 2))
+        torch.testing.assert_close(
+            embedding[:, :2], torch.zeros(2, 2)
+        )
+        torch.testing.assert_close(output_weight[2], torch.tensor([5.0, 6.0]))
+        torch.testing.assert_close(embedding[:, 2], torch.tensor([3.0, 6.0]))
+
     def test_weight_equivalent_hooks_match_explicit_projected_weights(self):
         from swift_abliteration.intervention import weight_equivalent_ablation_hooks
         from swift_abliteration.live_model import apply_edit

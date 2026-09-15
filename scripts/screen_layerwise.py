@@ -20,6 +20,7 @@ from swift_abliteration.intervention import (
     layerwise_weight_equivalent_ablation_hooks,
 )
 from swift_abliteration.live_model import validate_live_model
+from swift_abliteration.live_model import apply_layerwise_runtime_edit
 
 from scripts.screen_directions import GROUPS, run_arm
 
@@ -140,6 +141,11 @@ def main() -> int:
     parser.add_argument("--group-limit", type=int)
     parser.add_argument("--skip-base", action="store_true")
     parser.add_argument("--plan-name", action="append")
+    parser.add_argument(
+        "--intervention-mode",
+        choices=("module-hooks", "in-memory-weight-edit"),
+        default="module-hooks",
+    )
     parser.add_argument("--acknowledge", required=True)
     args = parser.parse_args()
     require_acknowledgement(args.acknowledge)
@@ -158,6 +164,12 @@ def main() -> int:
     estimator = str(plan_cfg["study"]["estimator"])
     requested = set(args.plan_name or [])
     plans = select_plans(plan_cfg["plans"], requested)
+    if args.intervention_mode == "in-memory-weight-edit" and (
+        not args.skip_base or len(plans) != 1
+    ):
+        raise RuntimeError(
+            "An in-memory layerwise edit requires --skip-base and one selected plan."
+        )
 
     output = Path(args.output_dir)
     output.mkdir(parents=True, exist_ok=False)
@@ -207,13 +219,14 @@ def main() -> int:
             plan, anchors, estimator, tensors
         )
         alpha = float(plan.get("alpha", 1.0))
-        with layerwise_weight_equivalent_ablation_hooks(
-            model,
-            cfg,
-            directions,
-            alpha,
-            embedding_direction=embedding_direction,
-        ) as intervention:
+        if args.intervention_mode == "in-memory-weight-edit":
+            intervention = apply_layerwise_runtime_edit(
+                model,
+                cfg,
+                directions,
+                alpha,
+                embedding_direction=embedding_direction,
+            )
             arms[name] = run_arm(
                 model,
                 processor,
@@ -223,6 +236,23 @@ def main() -> int:
                 args.system_prompt,
                 args.batch_size,
             )
+        else:
+            with layerwise_weight_equivalent_ablation_hooks(
+                model,
+                cfg,
+                directions,
+                alpha,
+                embedding_direction=embedding_direction,
+            ) as intervention:
+                arms[name] = run_arm(
+                    model,
+                    processor,
+                    prompt_groups,
+                    output / name,
+                    args.max_new_tokens,
+                    args.system_prompt,
+                    args.batch_size,
+                )
         arms[name]["direction_source"] = plan["source"]
         arms[name]["direction_keys_by_target_layer"] = direction_keys
         arms[name]["embedding_direction_keys"] = embedding_direction_keys
@@ -241,6 +271,7 @@ def main() -> int:
             "batch_size": args.batch_size,
             "group_limit": args.group_limit,
             "base_arm_included": not args.skip_base,
+            "intervention_mode": args.intervention_mode,
             "anchor_layers": anchors,
             "estimator": estimator,
             "arms": arms,

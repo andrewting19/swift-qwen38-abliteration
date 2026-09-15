@@ -3,6 +3,36 @@ anchor_layers = [24, 32, 38, 44, 52]
 estimator = "subspace"
 
 [[plans]]
+name = "global_source_span_rank2_layer52_embed52"
+source = "artifact"
+key_template = "source_span_layer_{anchor}_rank2"
+fixed_anchor = 52
+target_first = 0
+target_last = 63
+embedding_anchor = 52
+alpha = 1.0
+
+[[plans]]
+name = "global_rank4_layer52_embed52"
+source = "artifact"
+key_template = "matched_svd_layer_{anchor}_rank4"
+fixed_anchor = 52
+target_first = 0
+target_last = 63
+embedding_anchor = 52
+alpha = 1.0
+
+[[plans]]
+name = "global_rank8_layer52_embed52"
+source = "artifact"
+key_template = "matched_svd_layer_{anchor}_rank8"
+fixed_anchor = 52
+target_first = 0
+target_last = 63
+embedding_anchor = 52
+alpha = 1.0
+
+[[plans]]
 name = "rank4_mid20_56_embed24"
 source = "artifact"
 key_template = "matched_svd_layer_{anchor}_rank4"
