@@ -410,3 +410,81 @@ def activation_ablation_hooks(
     finally:
         for handle in handles:
             handle.remove()
+
+
+@contextmanager
+def reference_activation_ablation_hooks(
+    model: Any,
+    direction: Any,
+    layer_indices: Sequence[int] | None = None,
+    alpha: float = 1.0,
+) -> Iterator[dict[str, Any]]:
+    """Reproduce the Arditi candidate-selection activation ablation proxy.
+
+    This is not weight-equivalent. It projects the direction from every selected
+    block input and from each selected attention and MLP output. Use it only as
+    a causal direction-selection proxy, then validate the selected direction
+    with the reversible weight-equivalent intervention.
+    """
+    backbone = text_backbone(model)
+    indices = tuple(
+        range(len(backbone.layers))
+        if layer_indices is None
+        else dict.fromkeys(int(index) for index in layer_indices)
+    )
+    if not indices:
+        raise ValueError("At least one intervention layer is required.")
+    invalid = [index for index in indices if not 0 <= index < len(backbone.layers)]
+    if invalid:
+        raise ValueError(f"Intervention layers are outside the model: {invalid}")
+
+    handles = []
+    module_names: list[str] = []
+
+    def pre_hook(_module: Any, args: tuple[Any, ...], kwargs: dict[str, Any]):
+        if args:
+            return (project_activation(args[0], direction, alpha), *args[1:]), kwargs
+        if "hidden_states" not in kwargs:
+            raise RuntimeError("The layer input has no hidden-state tensor.")
+        updated = dict(kwargs)
+        updated["hidden_states"] = project_activation(
+            updated["hidden_states"], direction, alpha
+        )
+        return args, updated
+
+    def output_hook(_module: Any, _inputs: Any, output: Any):
+        return _replace_hidden(output, direction, alpha)
+
+    try:
+        for index in indices:
+            layer = backbone.layers[index]
+            handles.append(
+                layer.register_forward_pre_hook(pre_hook, with_kwargs=True)
+            )
+            module_names.append(f"model.language_model.layers.{index}.resid_pre")
+            if hasattr(layer, "linear_attn"):
+                attention = layer.linear_attn
+                attention_name = "linear_attn"
+            else:
+                attention = layer.self_attn
+                attention_name = "self_attn"
+            handles.append(attention.register_forward_hook(output_hook))
+            handles.append(layer.mlp.register_forward_hook(output_hook))
+            module_names.extend(
+                [
+                    f"model.language_model.layers.{index}.{attention_name}",
+                    f"model.language_model.layers.{index}.mlp",
+                ]
+            )
+        yield {
+            "type": "reference_activation_ablation_proxy",
+            "target_layers": list(indices),
+            "module_count": len(module_names),
+            "modules": module_names,
+            "alpha": float(alpha),
+            "weight_equivalent": False,
+            "checkpoint_saved": False,
+        }
+    finally:
+        for handle in handles:
+            handle.remove()

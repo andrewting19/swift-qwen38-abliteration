@@ -1,6 +1,6 @@
+import copy
 import sys
 import unittest
-import copy
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
@@ -483,6 +483,55 @@ class LiveModelTests(unittest.TestCase):
                 projected = layer(hidden)
                 self.assertEqual(float(projected[0, 0, 0]), 0.0)
                 self.assertEqual(float(projected[0, 0, 1]), 2.0)
+
+    def test_reference_activation_ablation_projects_three_sites_per_layer(self):
+        from swift_abliteration.intervention import (
+            reference_activation_ablation_hooks,
+        )
+
+        class Add(torch.nn.Module):
+            def __init__(self, delta):
+                super().__init__()
+                self.register_buffer("delta", torch.tensor(delta))
+
+            def forward(self, hidden):
+                return hidden + self.delta
+
+        class Layer(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.linear_attn = Add([[[3.0, 1.0]]])
+                self.mlp = Add([[[4.0, 2.0]]])
+
+            def forward(self, hidden_states):
+                value = hidden_states + self.linear_attn(hidden_states)
+                return value + self.mlp(value)
+
+        class Backbone(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.embed_tokens = torch.nn.Embedding(2, 2)
+                self.layers = torch.nn.ModuleList([Layer()])
+
+        class Root(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.model = torch.nn.Module()
+                self.model.language_model = Backbone()
+
+        model = Root()
+        layer = model.model.language_model.layers[0]
+        hidden = torch.tensor([[[2.0, 2.0]]])
+        direction = torch.tensor([1.0, 0.0])
+        before = layer(hidden)
+        with reference_activation_ablation_hooks(model, direction) as record:
+            during = layer(hidden)
+        after = layer(hidden)
+        self.assertNotEqual(float(before[0, 0, 0]), 0.0)
+        self.assertEqual(float(during[0, 0, 0]), 0.0)
+        self.assertTrue(torch.equal(before, after))
+        self.assertEqual(record["module_count"], 3)
+        self.assertFalse(record["weight_equivalent"])
 
     def test_fake_qwen_edit_removes_direction_from_all_planned_writers(self):
         from swift_abliteration.live_model import apply_edit
