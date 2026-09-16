@@ -78,10 +78,52 @@ Then compare them with short reversible generation screens. Advance only a
 rank-1 direction that increases direct or partial answers. Do not build another
 rank-2 direction from directions that only change refusal wording.
 
+## Multilayer result
+
+Separate layer-24, 32, 38, 44, and 52 directions were reconstructed from the
+same 128 plus 128 behavior-filtered prompts. The short reversible screen found:
+
+| Direction layer | Standard opening refusals | Matched opening refusals | XSTest-safe KL |
+| ---: | ---: | ---: | ---: |
+| 24 | 15 of 16 | 15 of 16 | 0.112637 |
+| 32 | 16 of 16 | 16 of 16 | 0.038458 |
+| 38 | 4 of 16 | 3 of 16 | 0.219670 |
+| 44 | 2 of 16 | 2 of 16 | 0.343553 |
+| 52 | 0 of 16 | 0 of 16 | 0.169298 |
+
+The strict local response-mode judge found zero direct or partial answers for
+layers 38, 44, and 52 on both harmful groups. Layer 52 removed every opening
+refusal but produced 29 soft refusals and three hard refusals across 32 cases.
+HarmBench found one behavior success for layer 52 and none on its matched group.
+
+Layer choice changes the refusal opening strongly, but it does not solve the
+substantive-answer problem.
+
+## Controlled answer-state result
+
+Two direct-answer system instructions and three assistant prefills were tested
+on the same fixed harmful requests. The strict local judge found zero direct or
+partial answers for every condition on both harmful groups. These conditions do
+not provide a valid answer state for paired direction extraction.
+
+## Remaining method mismatch
+
+The original Arditi reference pipeline extracts candidates at every fixed
+end-of-instruction token and at many layers. It does not use only the final
+prompt token. It captures `resid_pre`, the input to each transformer block, then
+selects candidates with causal ablation, refusal addition, and harmless KL.
+
+The work above used only the final prompt token. The next reconstruction is a
+prompt-suffix position sweep. It captures 16 final prompt positions at
+`resid_pre` for layers 24, 32, 38, 44, and 52. This creates 80 independent
+rank-1 candidates. Short generation screens will select by causal behavior and
+safe-output drift. This test must finish before teacher-forced answer data or
+post-training is considered.
+
 ## Compute state
 
-Vast instance 51156146 is stopped. The Vast credit balance is zero. Do not
-destroy the instance until its remaining judge artifacts are recovered. The
-multilayer capture and screen require additional credit or another suitable GPU.
+Vast instance 51156146 is stopped. Its retained disk contains the pinned model
+and judge caches. The last checked Vast credit balance was about $3.96. The
+prompt-suffix position capture and screen are the next paid-compute tasks.
 
 The final-test split remains unused. No permanent edited checkpoint exists.

@@ -341,6 +341,93 @@ def capture_last_token_activations_multi(
     return results
 
 
+def capture_last_positions_resid_pre_multi(
+    model: Any,
+    processor: Any,
+    prompts: list[str],
+    layer_indices: list[int],
+    position_count: int,
+    system_prompt: str | None = None,
+    batch_size: int = 8,
+) -> dict[int, list[Any]]:
+    """Capture the last fixed prompt positions at each layer input.
+
+    This matches the Arditi candidate extraction site: the residual stream
+    immediately before each transformer block. Each returned row has shape
+    ``[position_count, hidden_size]`` and uses positions ordered from oldest to
+    newest within the prompt suffix.
+    """
+    torch = __import__("torch")
+    if position_count <= 0 or batch_size <= 0:
+        raise ValueError("Position count and batch size must be positive.")
+    backbone = text_backbone(model)
+    tokenizer = getattr(processor, "tokenizer", processor)
+    indices = tuple(dict.fromkeys(int(index) for index in layer_indices))
+    if not indices:
+        raise ValueError("At least one capture layer is required.")
+    invalid = [index for index in indices if not 0 <= index < len(backbone.layers)]
+    if invalid:
+        raise ValueError(f"Capture layers are outside the model: {invalid}")
+
+    calls: dict[int, list[Any]] = {index: [] for index in indices}
+
+    def make_pre_hook(index: int):
+        def hook(_module: Any, inputs: Any) -> None:
+            calls[index].append(inputs[0].detach())
+
+        return hook
+
+    handles = [
+        backbone.layers[index].register_forward_pre_hook(make_pre_hook(index))
+        for index in indices
+    ]
+    results: dict[int, list[Any]] = {index: [] for index in indices}
+    previous_padding_side = tokenizer.padding_side
+    tokenizer.padding_side = "left"
+    try:
+        for start in range(0, len(prompts), batch_size):
+            values = prompts[start : start + batch_size]
+            rendered = [render_prompt(tokenizer, value, system_prompt) for value in values]
+            batch = tokenizer(rendered, return_tensors="pt", padding=True)
+            device = backbone.embed_tokens.weight.device
+            batch = {
+                name: value.to(device)
+                for name, value in batch.items()
+                if hasattr(value, "to")
+            }
+            mask = batch["attention_mask"]
+            lengths = mask.sum(dim=1)
+            if bool((lengths < position_count).any()):
+                raise ValueError(
+                    "A rendered prompt is shorter than the requested suffix."
+                )
+            for captured in calls.values():
+                captured.clear()
+            with torch.inference_mode():
+                model(**batch, use_cache=False)
+            rows = torch.arange(mask.shape[0], device=device).unsqueeze(1)
+            end_positions = (mask * torch.arange(mask.shape[1], device=device)).max(
+                dim=1
+            ).values
+            offsets = torch.arange(
+                position_count - 1, -1, -1, device=device
+            ).unsqueeze(0)
+            positions = end_positions.unsqueeze(1) - offsets
+            for index in indices:
+                if len(calls[index]) != 1:
+                    raise RuntimeError(
+                        f"Expected one activation call at layer {index}; "
+                        f"observed {len(calls[index])}."
+                    )
+                selected = calls[index][0][rows, positions].float().cpu()
+                results[index].extend(selected.unbind(0))
+    finally:
+        tokenizer.padding_side = previous_padding_side
+        for handle in handles:
+            handle.remove()
+    return results
+
+
 def capture_last_token_logits(
     model: Any,
     processor: Any,

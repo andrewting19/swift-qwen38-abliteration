@@ -2,9 +2,11 @@
 
 The current result and next approved reversible experiment are defined in
 `docs/INDEPENDENT_RECONSTRUCTION_STATUS.md`. The next run reuses the fixed
-behavior-filtered prompt set and reconstructs separate rank-1 directions at
-layers 24, 32, 38, 44, and 52. It selects candidates by generated direct or
-partial answers, not by refusal opening phrases alone.
+behavior-filtered prompt set and reconstructs rank-1 directions at 16 prompt
+suffix positions and layers 24, 32, 38, 44, and 52. It uses the transformer
+block input (`resid_pre`) to match the original reference method. It selects
+candidates by generated direct or partial answers, not by refusal opening
+phrases alone.
 
 Last updated: 2026-09-15
 
@@ -23,8 +25,9 @@ The direction-quality analysis and the final evaluation report are primary outpu
 - Do not quantize, publish, or upload a model.
 - Use one rented GPU at a time.
 - Do not add Vast.ai credit automatically.
-- The authorized Vast credit has reached zero. Instance `51156146` is stopped.
-  Do not destroy it until the remaining judge artifacts are recovered.
+- Vast instance `51156146` is stopped with its model and judge caches retained.
+  The last checked balance was about $3.96. Do not destroy the instance until
+  the position sweep and required artifact recovery are complete.
 - Do not put raw harmful prompts or harmful generations in Git or in the chat.
 - Do not send experiment prompts or responses to OpenAI models or APIs. Use only local open-weight judges for evaluation.
 

@@ -20,6 +20,71 @@ from swift_abliteration.config import (
 
 @unittest.skipIf(torch is None, "torch is not installed")
 class LiveModelTests(unittest.TestCase):
+    def test_capture_last_positions_uses_resid_pre_and_left_padding(self):
+        from types import SimpleNamespace
+
+        from swift_abliteration.live_model import (
+            capture_last_positions_resid_pre_multi,
+        )
+
+        class Tokenizer:
+            padding_side = "right"
+
+            def apply_chat_template(self, messages, **_kwargs):
+                return messages[-1]["content"]
+
+            def __call__(self, texts, **_kwargs):
+                rows = [[int(value) for value in text.split()] for text in texts]
+                width = max(len(row) for row in rows)
+                padded = [[0] * (width - len(row)) + row for row in rows]
+                return {
+                    "input_ids": torch.tensor(padded),
+                    "attention_mask": torch.tensor(
+                        [[value != 0 for value in row] for row in padded]
+                    ),
+                }
+
+        class Layer(torch.nn.Module):
+            def __init__(self, delta):
+                super().__init__()
+                self.delta = delta
+
+            def forward(self, hidden):
+                return hidden + self.delta
+
+        class Backbone(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.embed_tokens = torch.nn.Embedding(16, 1)
+                self.embed_tokens.weight.data[:, 0] = torch.arange(16)
+                self.layers = torch.nn.ModuleList([Layer(10), Layer(100)])
+
+        class Root(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.model = SimpleNamespace(language_model=Backbone())
+
+            def forward(self, input_ids, **_kwargs):
+                value = self.model.language_model.embed_tokens(input_ids)
+                for layer in self.model.language_model.layers:
+                    value = layer(value)
+                return SimpleNamespace(last_hidden_state=value)
+
+        tokenizer = Tokenizer()
+        captured = capture_last_positions_resid_pre_multi(
+            Root(),
+            tokenizer,
+            ["1 2 3 4", "5 6 7"],
+            [0, 1],
+            position_count=2,
+            batch_size=2,
+        )
+        torch.testing.assert_close(captured[0][0][:, 0], torch.tensor([3.0, 4.0]))
+        torch.testing.assert_close(captured[0][1][:, 0], torch.tensor([6.0, 7.0]))
+        torch.testing.assert_close(captured[1][0][:, 0], torch.tensor([13.0, 14.0]))
+        torch.testing.assert_close(captured[1][1][:, 0], torch.tensor([16.0, 17.0]))
+        self.assertEqual(tokenizer.padding_side, "right")
+
     def test_capability_direction_combiner_accepts_saved_rank2_basis(self):
         import importlib.util
 
