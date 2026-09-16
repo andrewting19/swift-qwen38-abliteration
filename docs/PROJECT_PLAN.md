@@ -1,14 +1,14 @@
 # Canonical Project Plan
 
 The current result and next approved reversible experiment are defined in
-`docs/INDEPENDENT_RECONSTRUCTION_STATUS.md`. The next run reuses the fixed
-behavior-filtered prompt set and reconstructs rank-1 directions at 16 prompt
-suffix positions and layers 24, 32, 38, 44, and 52. It uses the transformer
-block input (`resid_pre`) to match the original reference method. It selects
-candidates by generated direct or partial answers, not by refusal opening
-phrases alone.
+`docs/INDEPENDENT_RECONSTRUCTION_STATUS.md`. The 80-candidate prompt-position
+sweep is complete. The best local rank-1 arm reached 8 of 16 and 11 of 16
+HarmBench successes. A justified local rank-2 arm reached 9 of 16 and 11 of 16,
+with clean harmless KL of 0.2316 nats. The next experiment must keep the local
+direction or subspace and test a capability-preserving regularized edit. Do not
+repeat the same mean-difference search with the same projection rule.
 
-Last updated: 2026-09-15
+Last updated: 2026-09-16
 
 This file is the source of truth for the project goal, current authority, execution order, decision gates, and restart procedure. Read this file first after a context reset or a new session.
 
@@ -26,8 +26,8 @@ The direction-quality analysis and the final evaluation report are primary outpu
 - Use one rented GPU at a time.
 - Do not add Vast.ai credit automatically.
 - Vast instance `51156146` is stopped with its model and judge caches retained.
-  The last checked balance was about $3.96. Do not destroy the instance until
-  the position sweep and required artifact recovery are complete.
+  The last observed balance was about $0.57. The stopped disk costs about
+  $0.044 per hour. Required result artifacts are present locally.
 - Do not put raw harmful prompts or harmful generations in Git or in the chat.
 - Do not send experiment prompts or responses to OpenAI models or APIs. Use only local open-weight judges for evaluation.
 
@@ -102,11 +102,26 @@ Do not use the final test until one candidate and its settings are frozen.
 
 ## Execution order
 
-The first rental completed stages 0 through 5. It skipped stage 6 because no first-run candidate passed the reversible behavior screen. Its stage 7 artifact transfer and shutdown are complete. The recovery rental later ran a partial stage 6 on the successful refusal candidate. Its final artifact transfer and shutdown are pending.
+The first rental completed stages 0 through 5. It skipped stage 6 because no
+first-run candidate passed the reversible behavior screen. Later rentals tested
+recovery candidates and completed the independent reconstruction search. All
+required current-run artifacts are local. Instance `51156146` is stopped.
 
 Live result: Vast instance `51065040` supplied one A100 SXM4 80 GB at about $1.102/hour. The base checkpoint passed live architecture validation with PyTorch 2.9.1, CUDA 12.8, `causal-conv1d` 1.7.0, and `flash-linear-attention` 0.5.2. Activation capture and analysis of all 40 direction candidates completed. The first screen used whole-transformer-layer-output projection and remains a stress test only because it was not weight-equivalent. The replacement intervention passed numerical and live equivalence checks. The corrected matched plain arm produced 256 empty outputs and was rejected. Local open-weight WildGuard and HarmBench scoring completed with zero parse errors. The consensus winsor-995 arm removed 37.5% and 40.6% of base refusals. The standard winsor-995 arm removed 39.1% and 45.3%. Both fail the fixed 90% requirement on both harmful sets. All remote run artifacts were copied locally and verified. The final-test split remains unused, the quick capability gate was not run, and no permanent checkpoint exists.
 
 Recovery result: Vast instance `51081304` supplied one A100 SXM4 80 GB at about $1.102/hour. Six iterative source-specific directions produced a reversible no-embedding candidate. In the fresh 256-token confirmation on both 64-item harmful validation groups, it removed 92.19% and 90.63% of base refusals. It had no matched-harmless refusal increase and no empty or severe repeated outputs. WMDP-Cyber-256, CyberMetric-80, and MMLU-Pro-500 changed by -0.78, 0.00, and -1.40 accuracy points. Mean harmless KL was 0.639 nats, so the candidate fails the fixed 0.10 KL gate. An alpha ladder found no edit strength that passes both refusal and KL. The final-test split remains unused and no permanent checkpoint exists. See `docs/RECOVERY_POSTMORTEM.md`.
+
+Independent reconstruction result: Vast instance `51156146` used one RTX PRO
+6000 Max-Q 96 GB GPU at about $1.471/hour. A prompt-position sweep created 80
+local rank-1 directions from the model's own activations. Correct raw-scale
+activation addition confirmed causal refusal signals. The best local rank-1
+arm reached 8 of 16 and 11 of 16 HarmBench successes. A complementary local
+rank-2 arm reached 9 of 16 and 11 of 16. The public Orca positive control
+reached 10 of 16 and 11 of 16. The local rank-2 arm had clean harmless KL of
+0.2316 nats. An alpha ladder found no strength that passed both the 0.10 KL
+limit and the substantive-behavior requirement. Direction recovery therefore
+worked, but the simple projection edit remains too broad. See
+`docs/INDEPENDENT_RECONSTRUCTION_STATUS.md`.
 
 The local dashboard is at <http://127.0.0.1:8766/> for this run because port 8765 is in use by another local service. Start or restore it with the commands in `dashboard/README.md` and select an available port. It contains only safe aggregate status and results.
 

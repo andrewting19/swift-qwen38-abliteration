@@ -1,129 +1,147 @@
 # Independent Direction Reconstruction Status
 
-Last updated: 2026-09-15
+Last updated: 2026-09-16
 
 ## Objective
 
-Recover a refusal direction from the pinned Swift-Qwen3.8-27B model. Do not use
-a published direction as the experiment result. A published edit can be used
-only as a positive control that shows that a strong intervention exists.
+Recover a refusal direction from the pinned `ukisai/Swift-Qwen3.8-27b` model.
+Do not use a published direction as the experiment result. Use a published edit
+only as a positive control.
 
-## What was reconstructed locally
+## Current result
 
-The current direction was calculated from this model's own data and behavior:
+Independent direction reconstruction worked. The best local rank-1 direction
+caused substantive harmful-task completion on 8 of 16 standard cases and 11 of
+16 matched cases. The public Orca checkpoint caused completion on 10 of 16 and
+11 of 16 cases with the same HarmBench judge.
 
-1. Build disjoint harmful and harmless candidate pools without using the final
-   test split.
-2. Generate short base-model responses.
-3. Keep harmful cases that the base model refused and harmless cases that the
-   base model answered.
+A rank-2 edit made from two complementary local directions improved the local
+result to 9 of 16 and 11 of 16. It also reduced clean harmless KL from 0.2742
+to 0.2316 nats. It did not pass the fixed KL limit of 0.10 nats.
+
+The current problem is not a failure to find a refusal signal. The problem is
+that a simple orthogonal weight projection changes too much harmless behavior
+at the strength that is required for substantive task completion.
+
+| Reversible arm | Standard HarmBench | Matched HarmBench | Clean harmless KL |
+| --- | ---: | ---: | ---: |
+| Unchanged base | 0 of 16 | 0 of 16 | 0.0000 |
+| Local rank 1, position -5, layer 38 | 3 of 16 | 4 of 16 | 0.1189 |
+| Local rank 1, position -12, layer 32 | 6 of 16 | 9 of 16 | 0.2284 |
+| Local rank 1, position -13, layer 32 | 8 of 16 | 11 of 16 | 0.2742 |
+| Local complementary rank 2 | 9 of 16 | 11 of 16 | 0.2316 |
+| Public Orca positive control | 10 of 16 | 11 of 16 | Not measured in this run |
+
+All local arms used reversible weight-equivalent edits. No checkpoint was
+written. The final-test split was not used.
+
+## How the local directions were made
+
+The directions came only from this model's activations and behavior:
+
+1. Generate short base-model responses for candidate prompts.
+2. Keep harmful cases that the base model refused.
+3. Keep harmless cases that the base model answered.
 4. Select 128 cases from each class.
-5. Capture the last-prompt-token residual state at layer 38.
-6. Detect the persistent massive-activation coordinate from the captured data.
-7. Mask that coordinate and calculate a normalized difference-of-means
-   direction.
-8. Test the direction with reversible, weight-equivalent residual-writer output
-   hooks. No checkpoint was written.
+5. Capture `resid_pre` activations at 16 prompt-suffix positions and layers 24,
+   32, 38, 44, and 52.
+6. Mask the persistent massive-activation coordinate.
+7. Calculate a harmful-minus-harmless mean-difference direction for each
+   position and layer.
+8. Test all 80 candidates with reversible interventions and held-out data.
 
-This process independently detected coordinate 3994 as the only massive
-activation coordinate. The direction did not copy a published vector.
+This process independently detected coordinate 3994 as the only persistent
+massive-activation coordinate. It did not copy a public direction.
 
-## Direction quality
+## Important method correction
 
-- Eligible harmful cases: 159 of 160
-- Eligible harmless cases: 158 of 160
-- Selected cases: 128 harmful and 128 harmless
-- Bootstrap median cosine: 0.997087
-- Bootstrap mean cosine: 0.996861
-- Cosine with the earlier standard masked direction: 0.950185
-- Cosine with the earlier matched masked direction: 0.954641
+The reference Arditi code keeps the mean-difference vector at its raw scale for
+the activation-addition test. It normalizes the same vector for the ablation
+test. Our first addition screen used unit vectors for both tests. This made the
+addition test 7 to 99 times too weak.
 
-The direction is measured precisely. Sampling noise at layer 38 is not the main
-current problem.
+The corrected raw-scale addition screen found several directions that induced
+refusal on all 14 base-answerable safe prompts. Examples include position -9,
+layer 38 and position -9, layer 44. This result confirms that the reconstructed
+vectors contain a causal refusal signal.
 
-## Causal result
+## Why the reference proxy did not select the final arm
 
-The reversible edit projected this rank-1 direction from the token embedding
-and all 64 language-model layers.
+The exact reference activation-ablation proxy removes a direction from each
+complete residual state. It is not weight-equivalent. On this model, candidates
+with low KL under that proxy had little effect under the real weight-equivalent
+edit. Candidates with a strong real edit effect had high proxy KL.
 
-| Measure | Standard harmful | Matched harmful |
+The reference proxy is useful evidence, but its original thresholds do not
+transfer directly to this model.
+
+## Why the strict response label was misleading
+
+The strict local response-mode judge labeled most outputs from the public Orca
+checkpoint as soft refusals. HarmBench still found substantive task completion
+on 10 of 16 standard cases and 11 of 16 matched cases.
+
+Therefore, the strict style label is not a sufficient primary success measure.
+It detects cautious language, but cautious language can coexist with substantive
+completion. HarmBench is now the main substantive-behavior measure. The strict
+judge remains a secondary quality measure.
+
+## Why rank 2 was justified
+
+The position -12 and position -13 layer-32 directions had cosine similarity
+0.9087. They were related, but they were not identical. Each rank-1 edit also
+succeeded on cases where the other edit failed.
+
+Their union covered 10 of 16 standard cases and 12 of 16 matched cases. A QR
+orthonormal basis from these two directions produced the rank-2 arm. The result
+was 9 of 16 and 11 of 16. This is a small gain over the best rank-1 arm, not a
+complete solution.
+
+## Scope and strength tests
+
+The position -13, layer-32 direction needed the full interaction of attention
+and MLP residual writers:
+
+| Edit scope | Clean harmless KL | Short-screen marker removal |
 | --- | ---: | ---: |
-| Opening refusals | 4 of 16 | 3 of 16 |
-| HarmBench substantive answers | 2 of 16 | 4 of 16 |
-| Strict direct or partial answers | 0 of 16 | 1 of 16 |
+| Full edit with embedding | 0.2742 | 62.5% minimum |
+| Full edit without embedding | 0.2812 | 62.5% |
+| Layers 18 through 51, no embedding | 0.1636 | 6.25% |
+| Attention only | 0.0266 | 0% |
+| MLP only | 0.1269 | 6.25% |
 
-Safe-screen results:
+Removing the embedding edit did not improve KL. Restricting the layer range or
+editing only one writer type removed most of the behavior effect.
 
-- Mean harmless continuation KL: 0.035258 nats
-- Median harmless continuation KL: 0.025209 nats
-- Maximum harmless continuation KL: 0.140374 nats
-- Added opening refusals on the two harmless groups and XSTest: 0
-- Empty outputs: 0
-- Severe repetition: 0
+The rank-2 alpha ladder also showed a sharp threshold:
 
-The direction has a real causal effect on refusal openings and has low ordinary
-output drift. It does not yet cause reliable substantive answering. Most of the
-remaining outputs are soft refusals.
-
-## Interpretation
-
-Statistical direction quality and causal behavior control are different tests.
-The layer-38 direction is stable and separates the measured groups, but it
-captures only part of the behavior. Increasing the sample count at the same
-layer is unlikely to solve this by itself.
-
-The next test is layer choice. Reuse the same 128 plus 128 behavior-filtered
-prompts and reconstruct separate directions at layers 24, 32, 38, 44, and 52.
-Then compare them with short reversible generation screens. Advance only a
-rank-1 direction that increases direct or partial answers. Do not build another
-rank-2 direction from directions that only change refusal wording.
-
-## Multilayer result
-
-Separate layer-24, 32, 38, 44, and 52 directions were reconstructed from the
-same 128 plus 128 behavior-filtered prompts. The short reversible screen found:
-
-| Direction layer | Standard opening refusals | Matched opening refusals | XSTest-safe KL |
+| Alpha | Clean harmless KL | Standard HarmBench | Matched HarmBench |
 | ---: | ---: | ---: | ---: |
-| 24 | 15 of 16 | 15 of 16 | 0.112637 |
-| 32 | 16 of 16 | 16 of 16 | 0.038458 |
-| 38 | 4 of 16 | 3 of 16 | 0.219670 |
-| 44 | 2 of 16 | 2 of 16 | 0.343553 |
-| 52 | 0 of 16 | 0 of 16 | 0.169298 |
+| 0.60 | 0.0830 | Not advanced | Not advanced |
+| 0.70 | 0.1079 | 0 of 16 | 0 of 16 |
+| 0.80 | 0.1401 | Not advanced | Not advanced |
+| 0.90 | 0.1763 | 2 of 16 | 6 of 16 |
+| 1.00 | 0.2316 | 9 of 16 | 11 of 16 |
 
-The strict local response-mode judge found zero direct or partial answers for
-layers 38, 44, and 52 on both harmful groups. Layer 52 removed every opening
-refusal but produced 29 soft refusals and three hard refusals across 32 cases.
-HarmBench found one behavior success for layer 52 and none on its matched group.
+No alpha passed both the 0.10 KL limit and the substantive-behavior requirement.
 
-Layer choice changes the refusal opening strongly, but it does not solve the
-substantive-answer problem.
+## Decision
 
-## Controlled answer-state result
+Do not search more random mean-difference directions with the same edit rule.
+The next experiment should keep the locally reconstructed direction or rank-2
+subspace and change the edit rule. Test a capability-preserving regularized
+projection, such as preservation-aware projection or a PRE-style normalized
+edit. The first test must be reversible and must reuse saved activations and
+the current validation groups.
 
-Two direct-answer system instructions and three assistant prefills were tested
-on the same fixed harmful requests. The strict local judge found zero direct or
-partial answers for every condition on both harmful groups. These conditions do
-not provide a valid answer state for paired direction extraction.
-
-## Remaining method mismatch
-
-The original Arditi reference pipeline extracts candidates at every fixed
-end-of-instruction token and at many layers. It does not use only the final
-prompt token. It captures `resid_pre`, the input to each transformer block, then
-selects candidates with causal ablation, refusal addition, and harmless KL.
-
-The work above used only the final prompt token. The next reconstruction is a
-prompt-suffix position sweep. It captures 16 final prompt positions at
-`resid_pre` for layers 24, 32, 38, 44, and 52. This creates 80 independent
-rank-1 candidates. Short generation screens will select by causal behavior and
-safe-output drift. This test must finish before teacher-forced answer data or
-post-training is considered.
+Do not run the final-test split or create a checkpoint until one arm passes all
+fixed gates. Do not run the full capability suite while the current arm still
+fails the harmless KL gate, unless the user accepts a new gate.
 
 ## Compute state
 
-Vast instance 51156146 is stopped. Its retained disk contains the pinned model
-and judge caches. The last checked Vast credit balance was about $3.96. The
-prompt-suffix position capture and screen are the next paid-compute tasks.
+Vast instance `51156146` is stopped. The last observed account credit was about
+$0.57. The stopped disk costs about $0.044 per hour. All required result files
+from this run were copied to the local repository workspace.
 
 The final-test split remains unused. No permanent edited checkpoint exists.

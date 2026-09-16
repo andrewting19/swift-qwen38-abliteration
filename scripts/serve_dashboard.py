@@ -14,7 +14,7 @@ from urllib.parse import urlsplit
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_STATUS = ROOT / "runs/gpu/20260914-a100-51065040/status.json"
+DEFAULT_STATUS = ROOT / "dashboard/current-status.json"
 
 BASE_RUN = ROOT / "runs/gpu/20260914-a100-51065040"
 FINAL_RUN = ROOT / "runs/gpu/20260915-a100-51081304"

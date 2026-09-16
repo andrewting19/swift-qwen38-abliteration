@@ -12,6 +12,10 @@ only the dashboard, `/status.json`, the comparison page at `/compare`, and a
 fixed allowlist of before/after experiment artifacts. It does not expose the
 repository tree.
 
+The default snapshot is `dashboard/current-status.json`. It contains only safe
+aggregate state. Update this file after a completed run. Use `--status` for a
+temporary live-run snapshot.
+
 The safe-only KL review is available at `/safe-kl`. It exposes only the harmless
 base and candidate response files and safe aggregate metadata from the current
 generation search.

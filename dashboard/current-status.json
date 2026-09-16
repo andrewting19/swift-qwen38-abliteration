@@ -1,0 +1,176 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-09-16T01:07:43-04:00",
+  "run": {
+    "id": "20260916-independent-reconstruction",
+    "status": "analysis complete; regularized edit pending",
+    "experiment": "Swift Qwen3.8 independent refusal-direction reconstruction",
+    "visibility": "safe aggregate view; prompt and generation bodies omitted"
+  },
+  "rental": {
+    "provider": "Vast.ai",
+    "gpu": "RTX PRO 6000 Max-Q 96 GB",
+    "instance_id": "51156146",
+    "hourly_rate_usd": 1.471111,
+    "state": "stopped",
+    "estimated_cost_usd": null
+  },
+  "credit": {
+    "balance_usd": 0.57,
+    "top_up_usd": 5.0,
+    "policy": "do not restart without a defined regularized-edit test",
+    "note": "Last observed balance; stopped storage costs about $0.044 per hour"
+  },
+  "progress": {
+    "phase": "method redesign",
+    "phase_label": "Regularized edit design",
+    "phase_detail": "Independent direction recovery worked. The simple full-strength projection has too much harmless-output drift.",
+    "label": "Direction search complete",
+    "percent": 82,
+    "steps": [
+      {"label": "Position capture", "state": "done"},
+      {"label": "80-way screen", "state": "done"},
+      {"label": "Rank-1 confirm", "state": "done"},
+      {"label": "Rank-2 confirm", "state": "done"},
+      {"label": "Regularized edit", "state": "active"}
+    ]
+  },
+  "direction_quality": {
+    "status": "causal refusal signal confirmed; projection gate failed",
+    "layer": 32,
+    "cross_source_cosine": null,
+    "active_count": 2,
+    "candidates": [
+      {
+        "name": "position -13, layer 32",
+        "state": "best rank 1",
+        "layer": 32,
+        "bootstrap_median": "measured in saved report",
+        "separation": "causal addition and removal passed"
+      },
+      {
+        "name": "positions -12 and -13, layer 32",
+        "state": "best local arm",
+        "layer": 32,
+        "bootstrap_median": "direction cosine 0.9087",
+        "separation": "complementary HarmBench successes"
+      }
+    ]
+  },
+  "runtime": {
+    "observed_outputs": 0,
+    "expected_outputs": 0,
+    "gpu_memory_used_mib": 0,
+    "gpu_utilization_percent": 0
+  },
+  "events": [
+    {
+      "at": "2026-09-16T09:00:00-04:00",
+      "kind": "method correction",
+      "message": "Raw activation-addition scale was restored to match the reference method."
+    },
+    {
+      "at": "2026-09-16T10:00:00-04:00",
+      "kind": "causal test",
+      "message": "Several local directions induced refusal on all 14 base-answerable safe prompts."
+    },
+    {
+      "at": "2026-09-16T11:00:00-04:00",
+      "kind": "confirmation",
+      "message": "The best local rank-1 arm approached the public positive control on HarmBench."
+    },
+    {
+      "at": "2026-09-16T12:00:00-04:00",
+      "kind": "decision",
+      "message": "Rank 2 improved the result, but no alpha passed both substantive behavior and KL limits."
+    }
+  ],
+  "artifacts": [
+    {
+      "label": "Reference causal proxy report",
+      "path": "runs/gpu/20260916-reference-causal-proxy-51156146/proxy_report.json",
+      "size": "safe aggregate report",
+      "sha256": "stored in run artifacts"
+    },
+    {
+      "label": "Raw addition proxy report",
+      "path": "runs/gpu/20260916-raw-addition-proxy-51156146/raw_addition_report.json",
+      "size": "safe aggregate report",
+      "sha256": "stored in run artifacts"
+    },
+    {
+      "label": "Rank-2 confirmation report",
+      "path": "runs/gpu/20260916-harmbench-rank2-confirm-51156146/harmbench_rank2_confirm_report.json",
+      "size": "safe aggregate report",
+      "sha256": "stored in run artifacts"
+    }
+  ],
+  "evaluation": {
+    "metrics": [
+      {
+        "arm": "unchanged base",
+        "group": "standard / matched",
+        "metric": "HarmBench success",
+        "value": "0 / 16; 0 / 16",
+        "count": 32,
+        "state": "complete"
+      },
+      {
+        "arm": "local rank 1: position -13, layer 32",
+        "group": "standard / matched",
+        "metric": "HarmBench success",
+        "value": "8 / 16; 11 / 16",
+        "count": 32,
+        "state": "preliminary"
+      },
+      {
+        "arm": "local rank 1: position -13, layer 32",
+        "group": "clean harmless",
+        "metric": "mean KL",
+        "value": "0.2742 nats",
+        "count": 14,
+        "state": "failed 0.10 gate"
+      },
+      {
+        "arm": "local complementary rank 2",
+        "group": "standard / matched",
+        "metric": "HarmBench success",
+        "value": "9 / 16; 11 / 16",
+        "count": 32,
+        "state": "preliminary"
+      },
+      {
+        "arm": "local complementary rank 2",
+        "group": "clean harmless",
+        "metric": "mean KL",
+        "value": "0.2316 nats",
+        "count": 14,
+        "state": "failed 0.10 gate"
+      },
+      {
+        "arm": "public Orca positive control",
+        "group": "standard / matched",
+        "metric": "HarmBench success",
+        "value": "10 / 16; 11 / 16",
+        "count": 32,
+        "state": "diagnostic control"
+      },
+      {
+        "arm": "rank-2 alpha ladder",
+        "group": "alpha 0.60 to 1.00",
+        "metric": "joint behavior and KL passes",
+        "value": "0",
+        "count": 5,
+        "state": "complete"
+      },
+      {
+        "arm": "experiment controls",
+        "group": "final test / checkpoint",
+        "metric": "usage",
+        "value": "unused / not created",
+        "count": 0,
+        "state": "complete"
+      }
+    ]
+  }
+}
