@@ -17,6 +17,7 @@ def test_orthonormal_rows_returns_requested_rank() -> None:
     values = np.array([[1.0, 0.0, 0.0], [1.0, 1.0, 0.0]], dtype=np.float32)
     basis = MODULE.orthonormal_rows(values, 2)
     np.testing.assert_allclose(basis @ basis.T, np.eye(2), atol=1e-6)
+    assert basis.flags.c_contiguous
 
 
 def test_matched_svd_basis_contains_mean_direction() -> None:

@@ -1,0 +1,13 @@
+[study]
+anchor_layers = [38]
+estimator = "subspace"
+
+[[plans]]
+name = "standard_matched_layer38_massive_masked_rank2_all64_embed"
+source = "artifact"
+key_template = "source_span_layer_{anchor}_rank2"
+fixed_anchor = 38
+target_first = 0
+target_last = 63
+embedding_anchor = 38
+alpha = 1.0

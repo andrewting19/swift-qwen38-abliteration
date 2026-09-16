@@ -18,7 +18,9 @@ def orthonormal_rows(vectors: np.ndarray, rank: int) -> np.ndarray:
     diagonal = np.abs(np.diag(r))
     if np.count_nonzero(diagonal > 1e-6) < rank:
         raise ValueError("Vectors do not contain the requested independent rank.")
-    return q[:, :rank].T.astype(np.float32)
+    # Safetensors requires the row basis to have a stable C-contiguous layout.
+    # The transpose is otherwise a strided view that can serialize incorrectly.
+    return np.ascontiguousarray(q[:, :rank].T, dtype=np.float32)
 
 
 def matched_svd_basis(
@@ -62,6 +64,11 @@ def main() -> int:
     parser.add_argument("--directions", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--layers", nargs="+", type=int, default=[24, 32, 38, 44, 52])
+    parser.add_argument(
+        "--direction-estimator",
+        default="winsor_995",
+        help="Suffix used by the standard and matched direction tensor keys.",
+    )
     args = parser.parse_args()
 
     from safetensors.numpy import load_file, save_file
@@ -78,8 +85,8 @@ def main() -> int:
     for layer in args.layers:
         source_vectors = np.stack(
             [
-                directions[f"standard_layer_{layer}_winsor_995"],
-                directions[f"matched_layer_{layer}_winsor_995"],
+                directions[f"standard_layer_{layer}_{args.direction_estimator}"],
+                directions[f"matched_layer_{layer}_{args.direction_estimator}"],
             ]
         )
         source_basis = orthonormal_rows(source_vectors, 2)

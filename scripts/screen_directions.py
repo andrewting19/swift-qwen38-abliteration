@@ -30,6 +30,7 @@ GROUPS = {
     "matched_harmful": "data/prepared/matched/evaluation_harmful.jsonl",
     "standard_harmless": "data/prepared/evaluation_harmless.jsonl",
     "matched_harmless": "data/prepared/matched/evaluation_harmless.jsonl",
+    "xstest_safe": "data/prepared/xstest-safe/validation.jsonl",
 }
 
 

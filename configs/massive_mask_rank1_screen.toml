@@ -1,0 +1,33 @@
+[study]
+anchor_layers = [24, 32, 38, 44, 52]
+estimator = "massive_masked"
+
+[[plans]]
+name = "standard_layer38_massive_masked_all64_embed"
+source = "artifact"
+key_template = "standard_layer_{anchor}_massive_masked"
+fixed_anchor = 38
+target_first = 0
+target_last = 63
+embedding_anchor = 38
+alpha = 1.0
+
+[[plans]]
+name = "matched_layer38_massive_masked_all64_embed"
+source = "artifact"
+key_template = "matched_layer_{anchor}_massive_masked"
+fixed_anchor = 38
+target_first = 0
+target_last = 63
+embedding_anchor = 38
+alpha = 1.0
+
+[[plans]]
+name = "consensus_layer38_massive_masked_all64_embed"
+source = "artifact"
+key_template = "consensus_layer_{anchor}_massive_masked"
+fixed_anchor = 38
+target_first = 0
+target_last = 63
+embedding_anchor = 38
+alpha = 1.0

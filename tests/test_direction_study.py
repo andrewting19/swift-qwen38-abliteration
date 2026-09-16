@@ -9,8 +9,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from swift_abliteration.direction_study import (
     bootstrap_consensus_stability,
     bootstrap_cosine_stability,
+    bootstrap_masked_direction_stability,
     coordinate_masked_direction,
     cosine_similarity,
+    massive_activation_coordinate_mask,
     normalized_average,
     orthogonalize_direction,
     ridge_fisher_direction,
@@ -93,6 +95,36 @@ class DirectionStudyTests(unittest.TestCase):
             harmful, harmless, np.array([True, False])
         )
         np.testing.assert_allclose(direction, [0, 1], atol=1e-6)
+
+    def test_massive_activation_mask_finds_one_persistent_outlier(self):
+        first = np.tile(
+            np.array([1.0, 1.5, 1000.0, 2.0], dtype=np.float32), (8, 1)
+        )
+        second = np.tile(
+            np.array([1.1, 1.6, 900.0, 2.1], dtype=np.float32), (8, 1)
+        )
+
+        mask, details = massive_activation_coordinate_mask(
+            [first, second], log_robust_z_threshold=5.0
+        )
+
+        np.testing.assert_array_equal(mask, [False, False, True, False])
+        self.assertEqual(details["selected_indices"], [2])
+
+    def test_masked_bootstrap_uses_fixed_coordinate_mask(self):
+        harmful = np.array([[1000, 2], [900, 2], [1100, 2]], dtype=np.float32)
+        harmless = np.array([[1000, 0], [900, 0], [1100, 0]], dtype=np.float32)
+        reference = np.array([0, 1], dtype=np.float32)
+
+        values = bootstrap_masked_direction_stability(
+            harmful,
+            harmless,
+            np.array([True, False]),
+            reference,
+            samples=20,
+        )
+
+        self.assertGreater(float(values.min()), 0.999)
 
     def test_bootstrap_is_stable_for_clean_groups(self):
         harmful = np.array([[2, -0.1], [2, 0.0], [2, 0.1], [2, 0.05]], dtype=np.float32)

@@ -1,9 +1,10 @@
 # Canonical Project Plan
 
-The next approved reversible experiment is defined in `docs/RANK1_RERUN_PLAN.md`.
-It uses base refusal-token score filtering, two activation positions, a six-item
-statistical shortlist, causal removal and addition proxy tests, and a two-candidate
-32-token response pilot. It stops before rank 2 if no rank-1 candidate passes.
+The current result and next approved reversible experiment are defined in
+`docs/INDEPENDENT_RECONSTRUCTION_STATUS.md`. The next run reuses the fixed
+behavior-filtered prompt set and reconstructs separate rank-1 directions at
+layers 24, 32, 38, 44, and 52. It selects candidates by generated direct or
+partial answers, not by refusal opening phrases alone.
 
 Last updated: 2026-09-15
 
@@ -22,7 +23,8 @@ The direction-quality analysis and the final evaluation report are primary outpu
 - Do not quantize, publish, or upload a model.
 - Use one rented GPU at a time.
 - Do not add Vast.ai credit automatically.
-- The user reports adding $15 of additional Vast credit and authorizes use until the Vast credit balance is zero. Preserve and verify artifacts before the last usable credit is consumed.
+- The authorized Vast credit has reached zero. Instance `51156146` is stopped.
+  Do not destroy it until the remaining judge artifacts are recovered.
 - Do not put raw harmful prompts or harmful generations in Git or in the chat.
 - Do not send experiment prompts or responses to OpenAI models or APIs. Use only local open-weight judges for evaluation.
 

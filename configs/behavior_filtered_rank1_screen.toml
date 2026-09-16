@@ -1,0 +1,13 @@
+[study]
+anchor_layers = [38]
+estimator = "massive_masked"
+
+[[plans]]
+name = "behavior_filtered_layer38_massive_masked_all64_embed"
+source = "artifact"
+key_template = "behavior_filtered_layer_{anchor}_massive_masked"
+fixed_anchor = 38
+target_first = 0
+target_last = 63
+embedding_anchor = 38
+alpha = 1.0

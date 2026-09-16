@@ -2,12 +2,12 @@
 
 This private research repository contains a controlled refusal-direction experiment for `ukisai/Swift-Qwen3.8-27b`.
 
-The latest GPU experiment tested one reversible rank-1 edit. It passed the
-refusal-language, clean harmless-KL, over-refusal, and three measured capability
-gates. It failed the fixed HarmBench behavior-completion gate. Manual review
-confirmed soft refusals, non-compliance, and language errors that the automated
-quality rule missed. The candidate is rejected. No permanent checkpoint was
-written and the final-test split was not used.
+The latest GPU experiment independently reconstructed a behavior-filtered,
+massive-coordinate-masked rank-1 direction from the base model. It reduced
+opening refusals and kept mean harmless KL at 0.035258 nats, but it did not
+produce reliable substantive answers. Most changed outputs remained soft
+refusals. The candidate is rejected. No permanent checkpoint was written and
+the final-test split was not used.
 
 ## Current state
 
@@ -22,9 +22,11 @@ written and the final-test split was not used.
 - The GPU runners have an explicit acknowledgement switch. They do not run by default.
 - The exact Orca massive-activation mask is not implemented because its rule and threshold are not public.
 - The recovery code includes iterative directions, source-specific branches, alpha screening, capability checks, and aggregate-only local judge reports.
+- The latest direction was reconstructed from 128 base-refused harmful cases and 128 base-answered harmless cases. It did not copy a published direction.
 
-Read [docs/RANK1_VALIDATION_RESULT.md](docs/RANK1_VALIDATION_RESULT.md) for the
-current result. Read [docs/RECOVERY_POSTMORTEM.md](docs/RECOVERY_POSTMORTEM.md)
+Read [docs/INDEPENDENT_RECONSTRUCTION_STATUS.md](docs/INDEPENDENT_RECONSTRUCTION_STATUS.md)
+for the current result. Read [docs/RANK1_VALIDATION_RESULT.md](docs/RANK1_VALIDATION_RESULT.md)
+for the prior rank-1 result. Read [docs/RECOVERY_POSTMORTEM.md](docs/RECOVERY_POSTMORTEM.md)
 for the earlier six-direction recovery, [docs/PROJECT_PLAN.md](docs/PROJECT_PLAN.md)
 for the full plan, and [infra/vast/RUNBOOK.md](infra/vast/RUNBOOK.md) before
 another GPU rental.

@@ -99,6 +99,69 @@ def coordinate_masked_direction(
     return base / norm
 
 
+def massive_activation_coordinate_mask(
+    activation_groups: list[np.ndarray],
+    log_robust_z_threshold: float = 10.0,
+) -> tuple[np.ndarray, dict[str, object]]:
+    """Detect persistent coordinate outliers without using behavior labels."""
+    if not activation_groups:
+        raise ValueError("At least one activation group is required.")
+    arrays = [np.asarray(group, dtype=np.float32) for group in activation_groups]
+    if any(array.ndim != 2 for array in arrays):
+        raise ValueError("Activation groups must be matrices.")
+    hidden_size = arrays[0].shape[1]
+    if any(array.shape[1] != hidden_size for array in arrays[1:]):
+        raise ValueError("Activation groups must have the same hidden size.")
+    if not np.isfinite(log_robust_z_threshold) or log_robust_z_threshold <= 0:
+        raise ValueError("The robust-z threshold must be positive and finite.")
+    pooled = np.concatenate(arrays, axis=0).astype(np.float64, copy=False)
+    rms = np.sqrt(np.mean(np.square(pooled), axis=0))
+    if not np.all(np.isfinite(rms)) or np.any(rms <= 0):
+        raise ValueError("Coordinate RMS values must be positive and finite.")
+    log_rms = np.log(rms)
+    median = float(np.median(log_rms))
+    mad = float(np.median(np.abs(log_rms - median)))
+    if not np.isfinite(mad) or mad <= 0:
+        raise ValueError("Log-RMS median absolute deviation must be positive.")
+    robust_z = (log_rms - median) / (1.4826 * mad)
+    mask = robust_z > log_robust_z_threshold
+    selected = np.flatnonzero(mask)
+    return mask, {
+        "method": "pooled_coordinate_log_rms_robust_z",
+        "log_robust_z_threshold": float(log_robust_z_threshold),
+        "selected_indices": [int(index) for index in selected],
+        "selected_count": int(selected.size),
+        "maximum_log_robust_z": float(robust_z.max()),
+        "second_largest_log_robust_z": float(np.partition(robust_z, -2)[-2]),
+        "maximum_rms_to_median_rms": float(rms.max() / np.median(rms)),
+    }
+
+
+def bootstrap_masked_direction_stability(
+    harmful: np.ndarray,
+    harmless: np.ndarray,
+    coordinate_mask: np.ndarray,
+    reference: np.ndarray,
+    samples: int = 500,
+    seed: int = 3819,
+) -> np.ndarray:
+    """Bootstrap a fixed coordinate-masked mean-difference estimator."""
+    harmful = np.asarray(harmful, dtype=np.float32)
+    harmless = np.asarray(harmless, dtype=np.float32)
+    if samples <= 0:
+        raise ValueError("Bootstrap sample count must be positive.")
+    generator = np.random.default_rng(seed)
+    results = np.empty(samples, dtype=np.float32)
+    for index in range(samples):
+        h_indices = generator.integers(0, len(harmful), size=len(harmful))
+        s_indices = generator.integers(0, len(harmless), size=len(harmless))
+        candidate = coordinate_masked_direction(
+            harmful[h_indices], harmless[s_indices], coordinate_mask
+        )
+        results[index] = cosine_similarity(candidate, reference)
+    return results
+
+
 def cosine_similarity(left: np.ndarray, right: np.ndarray) -> float:
     left = np.asarray(left, dtype=np.float32)
     right = np.asarray(right, dtype=np.float32)
