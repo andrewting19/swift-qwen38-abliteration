@@ -90,6 +90,78 @@ def _project_linear_output(
     return project_activation(output - adjusted_bias, direction, alpha) + adjusted_bias
 
 
+def _norm_preserving_linear_factors(
+    weight: Any,
+    direction: Any,
+    alpha: float,
+    column_chunk: int = 1024,
+) -> tuple[Any, Any]:
+    """Calculate factors for an exact norm-preserving output-weight projection."""
+    import torch
+
+    if weight.ndim != 2 or weight.shape[0] != int(direction.shape[-1]):
+        raise ValueError("Writer shape does not match the direction.")
+    if column_chunk <= 0:
+        raise ValueError("Column chunk must be positive.")
+    row_norm = torch.linalg.vector_norm(weight.detach().float(), dim=1)
+    if not torch.isfinite(row_norm).all() or bool((row_norm <= 1e-12).any()):
+        raise ValueError("Writer has a zero or invalid row norm.")
+    projected_squared_norm = torch.zeros_like(row_norm)
+    for start in range(0, weight.shape[1], column_chunk):
+        stop = min(start + column_chunk, weight.shape[1])
+        unit_block = weight[:, start:stop].detach().float() / row_norm[:, None]
+        projected = project_activation(
+            unit_block.transpose(0, 1), direction, alpha
+        ).transpose(0, 1)
+        projected_squared_norm.add_((projected * projected).sum(dim=1))
+    projected_norm = projected_squared_norm.sqrt()
+    if not torch.isfinite(projected_norm).all() or bool(
+        (projected_norm <= 1e-12).any()
+    ):
+        raise ValueError("Norm-preserving projection collapsed a writer row.")
+    return row_norm, projected_norm
+
+
+def _norm_preserving_linear_output(
+    output: Any,
+    direction: Any,
+    alpha: float,
+    bias: Any | None,
+    row_norm: Any,
+    projected_norm: Any,
+) -> Any:
+    """Match a row-norm-preserving projected weight without changing the weight."""
+    original_dtype = output.dtype
+    centered = output.float()
+    adjusted_bias = None
+    if bias is not None:
+        adjusted_bias = bias.to(device=output.device, dtype=centered.dtype)
+        centered = centered - adjusted_bias
+    original_scale = row_norm.to(device=output.device, dtype=centered.dtype)
+    new_scale = projected_norm.to(device=output.device, dtype=centered.dtype)
+    unit_output = centered / original_scale
+    projected = project_activation(unit_output, direction, alpha)
+    result = projected * (original_scale / new_scale)
+    if adjusted_bias is not None:
+        result = result + adjusted_bias
+    return result.to(dtype=original_dtype)
+
+
+def _norm_preserving_embedding_output(
+    output: Any, direction: Any, alpha: float
+) -> Any:
+    """Project embedding rows and restore each selected row's original norm."""
+    original_dtype = output.dtype
+    value = output.float()
+    original_norm = value.norm(dim=-1, keepdim=True)
+    projected = project_activation(value, direction, alpha)
+    projected_norm = projected.norm(dim=-1, keepdim=True)
+    if bool((projected_norm <= 1e-12).any()):
+        raise ValueError("Norm-preserving projection collapsed an embedding row.")
+    result = projected * (original_norm / projected_norm)
+    return result.to(dtype=original_dtype)
+
+
 def planned_runtime_writers(
     model: Any,
     cfg: ExperimentConfig,
@@ -231,6 +303,129 @@ def weight_equivalent_ablation_hooks(
             if not cfg.edit.include_mtp or generation_uses_mtp
             else "The active Transformers generation path does not execute MTP.",
             "alpha": value,
+        }
+    finally:
+        for handle in handles:
+            handle.remove()
+
+
+@contextmanager
+def norm_preserving_weight_equivalent_ablation_hooks(
+    model: Any,
+    cfg: ExperimentConfig,
+    direction: Any,
+    alpha: float | None = None,
+    *,
+    attention_alpha: float | None = None,
+    mlp_alpha: float | None = None,
+    embedding_alpha: float | None = None,
+    generation_uses_mtp: bool = False,
+    column_chunk: int = 1024,
+) -> Iterator[dict[str, Any]]:
+    """Temporarily match a row-norm-preserving projected weight edit."""
+    value = cfg.edit.alpha if alpha is None else float(alpha)
+    attention_value = value if attention_alpha is None else float(attention_alpha)
+    mlp_value = value if mlp_alpha is None else float(mlp_alpha)
+    embedding_value = value if embedding_alpha is None else float(embedding_alpha)
+    for label, component_value in (
+        ("alpha", value),
+        ("attention_alpha", attention_value),
+        ("mlp_alpha", mlp_value),
+        ("embedding_alpha", embedding_value),
+    ):
+        if not 0.0 <= component_value <= 1.0:
+            raise ValueError(f"{label} must be between 0 and 1")
+    targets = planned_runtime_writers(
+        model, cfg, generation_uses_mtp=generation_uses_mtp
+    )
+    if not targets:
+        raise ValueError("The configured edit contains no runtime writer modules.")
+    hidden_size = int(direction.shape[-1])
+    handles = []
+    bias_modules: list[str] = []
+    component_alphas: dict[str, float] = {}
+    try:
+        for target in targets:
+            if target.kind == "embedding":
+                if (
+                    target.module.weight.ndim != 2
+                    or target.module.weight.shape[1] != hidden_size
+                ):
+                    raise ValueError(
+                        f"Embedding shape does not match direction: {target.name}"
+                    )
+
+                def hook(
+                    _module,
+                    _inputs,
+                    output,
+                    *,
+                    _direction=direction,
+                    _alpha=embedding_value,
+                ):
+                    return _norm_preserving_embedding_output(
+                        output, _direction, _alpha
+                    )
+
+                projection_alpha = embedding_value
+            else:
+                if (
+                    target.module.weight.ndim != 2
+                    or target.module.weight.shape[0] != hidden_size
+                ):
+                    raise ValueError(
+                        f"Writer shape does not match direction: {target.name}"
+                    )
+                projection_alpha = (
+                    mlp_value if ".mlp.down_proj" in target.name else attention_value
+                )
+                bias = getattr(target.module, "bias", None)
+                if bias is not None:
+                    bias_modules.append(target.name)
+                row_norm, projected_norm = _norm_preserving_linear_factors(
+                    target.module.weight,
+                    direction,
+                    projection_alpha,
+                    column_chunk,
+                )
+
+                def hook(
+                    _module,
+                    _inputs,
+                    output,
+                    *,
+                    _direction=direction,
+                    _alpha=projection_alpha,
+                    _bias=bias,
+                    _row_norm=row_norm,
+                    _projected_norm=projected_norm,
+                ):
+                    return _norm_preserving_linear_output(
+                        output,
+                        _direction,
+                        _alpha,
+                        _bias,
+                        _row_norm,
+                        _projected_norm,
+                    )
+
+            component_alphas[target.name] = projection_alpha
+            handles.append(target.module.register_forward_hook(hook))
+        yield {
+            "type": "norm_preserving_weight_equivalent_module_output_projection",
+            "module_count": len(targets),
+            "modules": [target.name for target in targets],
+            "bias_modules": bias_modules,
+            "embedding_included": cfg.edit.include_embedding,
+            "mtp_included": bool(cfg.edit.include_mtp and generation_uses_mtp),
+            "alpha": value,
+            "attention_alpha": attention_value,
+            "mlp_alpha": mlp_value,
+            "embedding_alpha": embedding_value,
+            "component_alphas": component_alphas,
+            "column_chunk": int(column_chunk),
+            "weight_equivalent": True,
+            "norm_preserving": True,
         }
     finally:
         for handle in handles:

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-09-16T01:07:43-04:00",
+  "updated_at": "2026-09-16T01:25:00-04:00",
   "run": {
     "id": "20260916-independent-reconstruction",
     "status": "analysis complete; regularized edit pending",
@@ -24,9 +24,9 @@
   "progress": {
     "phase": "method redesign",
     "phase_label": "Regularized edit design",
-    "phase_detail": "Independent direction recovery worked. The simple full-strength projection has too much harmless-output drift.",
-    "label": "Direction search complete",
-    "percent": 82,
+    "phase_detail": "The norm-preserving reversible edit and projected local candidates are ready. The simple full-strength projection has too much harmless-output drift.",
+    "label": "Regularized edit implementation ready",
+    "percent": 86,
     "steps": [
       {"label": "Position capture", "state": "done"},
       {"label": "80-way screen", "state": "done"},
@@ -65,24 +65,29 @@
   },
   "events": [
     {
-      "at": "2026-09-16T09:00:00-04:00",
+      "at": "2026-09-16T00:20:00-04:00",
       "kind": "method correction",
       "message": "Raw activation-addition scale was restored to match the reference method."
     },
     {
-      "at": "2026-09-16T10:00:00-04:00",
+      "at": "2026-09-16T00:35:00-04:00",
       "kind": "causal test",
       "message": "Several local directions induced refusal on all 14 base-answerable safe prompts."
     },
     {
-      "at": "2026-09-16T11:00:00-04:00",
+      "at": "2026-09-16T00:50:00-04:00",
       "kind": "confirmation",
       "message": "The best local rank-1 arm approached the public positive control on HarmBench."
     },
     {
-      "at": "2026-09-16T12:00:00-04:00",
+      "at": "2026-09-16T01:05:00-04:00",
       "kind": "decision",
       "message": "Rank 2 improved the result, but no alpha passed both substantive behavior and KL limits."
+    },
+    {
+      "at": "2026-09-16T01:25:00-04:00",
+      "kind": "local preparation",
+      "message": "Norm-preserving weight-equivalent hooks, projected local candidates, and verified base-arm reuse are ready for the next rental."
     }
   ],
   "artifacts": [

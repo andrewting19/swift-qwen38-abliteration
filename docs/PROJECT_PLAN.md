@@ -7,6 +7,8 @@ HarmBench successes. A justified local rank-2 arm reached 9 of 16 and 11 of 16,
 with clean harmless KL of 0.2316 nats. The next experiment must keep the local
 direction or subspace and test a capability-preserving regularized edit. Do not
 repeat the same mean-difference search with the same projection rule.
+The exact next-run candidate order and gates are in
+`docs/REGULARIZED_EDIT_PLAN.md`.
 
 Last updated: 2026-09-16
 
@@ -273,6 +275,7 @@ After a context reset or interrupted rental:
 - Dataset details: `docs/DATASET_METHODS.md`
 - Prompt metadata: `docs/PROMPT_SET_AUDIT.md`
 - Direction estimators: `docs/DIRECTION_ESTIMATORS.md`
+- Regularized edit plan: `docs/REGULARIZED_EDIT_PLAN.md`
 - Evaluation protocol: `docs/EVAL_PROTOCOL.md`
 - Vast operation: `infra/vast/RUNBOOK.md`
 - Frozen sources: `docs/SOURCES.md`

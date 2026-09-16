@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -21,6 +22,7 @@ from swift_abliteration.gpu_support import (
 )
 from swift_abliteration.intervention import (
     layerwise_weight_equivalent_ablation_hooks,
+    norm_preserving_weight_equivalent_ablation_hooks,
     weight_equivalent_ablation_hooks,
 )
 from swift_abliteration.live_model import (
@@ -258,7 +260,10 @@ def valid_completed_arm(
         return None
     if record.get("prompt_source_sha256") != prompt_source_sha256:
         return None
-    if record.get("run_signature") != run_signature:
+    saved_signature = record.get("run_signature", {})
+    if not isinstance(saved_signature, dict) or any(
+        saved_signature.get(key) != value for key, value in run_signature.items()
+    ):
         return None
     hashes = record.get("response_sha256", {})
     if set(hashes) != EXPECTED_RESPONSE_GROUPS:
@@ -267,6 +272,42 @@ def valid_completed_arm(
         path = raw_dir / f"{group}.jsonl"
         if not path.is_file() or sha256_file(path) != expected:
             return None
+    return record
+
+
+def copy_reused_base(
+    source_root: Path,
+    output_root: Path,
+    prompt_source_sha256: dict[str, str],
+    base_signature: dict[str, Any],
+) -> dict | None:
+    """Copy one verified base arm into a new screen without printing raw data."""
+    source_record = source_root / "arms/base.json"
+    source_raw = source_root / "raw/base"
+    source_logits = source_root / "arms/base_xstest_first_logits.npz"
+    record = valid_completed_arm(
+        source_record,
+        source_raw,
+        None,
+        prompt_source_sha256,
+        base_signature,
+    )
+    if (
+        record is None
+        or not source_logits.is_file()
+        or record.get("xstest_logits_sha256") != sha256_file(source_logits)
+    ):
+        return None
+    destination_record = output_root / "arms/base.json"
+    destination_raw = output_root / "raw/base"
+    destination_logits = output_root / "arms/base_xstest_first_logits.npz"
+    if destination_raw.exists():
+        move_incomplete(destination_raw)
+    destination_raw.mkdir(parents=True)
+    for group in EXPECTED_RESPONSE_GROUPS:
+        shutil.copy2(source_raw / f"{group}.jsonl", destination_raw / f"{group}.jsonl")
+    shutil.copy2(source_record, destination_record)
+    shutil.copy2(source_logits, destination_logits)
     return record
 
 
@@ -348,6 +389,11 @@ def main() -> int:
     parser.add_argument("--config", default="configs/orca_style_full.toml")
     parser.add_argument("--candidate-file", type=Path, required=True)
     parser.add_argument("--candidate-report", type=Path)
+    parser.add_argument(
+        "--reuse-base-dir",
+        type=Path,
+        help="Reuse a verified base arm from another compatible screen root.",
+    )
     parser.add_argument("--candidate-key", action="append")
     parser.add_argument("--screen-name", required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
@@ -375,6 +421,11 @@ def main() -> int:
     parser.add_argument("--alpha", type=float, default=1.0)
     parser.add_argument("--attention-alpha", type=float)
     parser.add_argument("--mlp-alpha", type=float)
+    parser.add_argument(
+        "--norm-preserving",
+        action="store_true",
+        help="Preserve each edited writer row norm after projection.",
+    )
     parser.add_argument(
         "--target-layer",
         type=int,
@@ -410,6 +461,10 @@ def main() -> int:
         raise ValueError(
             "Use target layers or component-specific layer sets, not both."
         )
+    if args.norm_preserving and (target_layers or attention_layers or mlp_layers):
+        raise ValueError(
+            "The norm-preserving screen currently requires the full configured layer range."
+        )
     args.output_dir.mkdir(parents=True, exist_ok=True)
     arms_dir = args.output_dir / "arms"
     raw_root = args.output_dir / "raw"
@@ -436,7 +491,7 @@ def main() -> int:
     prompt_source_sha256 = {
         group: value["sha256"] for group, value in prompt_sources.items()
     }
-    run_signature = {
+    base_signature = {
         "max_new_tokens": args.max_new_tokens,
         "system_prompt": args.system_prompt,
         "harmful_offset": args.harmful_offset,
@@ -446,9 +501,13 @@ def main() -> int:
         "safe_limit": args.safe_limit,
         "split_role": args.split_role,
         "requested_batch_size": args.batch_size,
+    }
+    run_signature = {
+        **base_signature,
         "alpha": args.alpha,
         "attention_alpha": args.attention_alpha,
         "mlp_alpha": args.mlp_alpha,
+        "norm_preserving": args.norm_preserving,
         "target_layers": target_layers or None,
         "attention_layers": attention_layers or None,
         "mlp_layers": mlp_layers or None,
@@ -491,7 +550,7 @@ def main() -> int:
         base_raw_dir,
         None,
         prompt_source_sha256,
-        run_signature,
+        base_signature,
     )
     base_logits_path = arms_dir / "base_xstest_first_logits.npz"
     valid_base_logits = (
@@ -499,6 +558,20 @@ def main() -> int:
         and base_logits_path.is_file()
         and base_record.get("xstest_logits_sha256") == sha256_file(base_logits_path)
     )
+    base_reused_from = None
+    if (
+        (base_record is None or not valid_base_logits)
+        and args.reuse_base_dir is not None
+    ):
+        base_record = copy_reused_base(
+            args.reuse_base_dir,
+            args.output_dir,
+            prompt_source_sha256,
+            base_signature,
+        )
+        if base_record is not None:
+            base_reused_from = str(args.reuse_base_dir)
+            valid_base_logits = True
     if base_record is None or not valid_base_logits:
         move_incomplete(base_raw_dir)
         base_metrics, base_logits, base_batch_size = generate_arm_with_fallback(
@@ -515,7 +588,7 @@ def main() -> int:
             **base_metrics,
             "candidate_sha256": None,
             "prompt_source_sha256": prompt_source_sha256,
-            "run_signature": run_signature,
+            "run_signature": base_signature,
             "batch_size": base_batch_size,
             "xstest_logits_sha256": sha256_file(base_logits_path),
         }
@@ -541,7 +614,17 @@ def main() -> int:
             print(json.dumps({"candidate": key, "status": "resumed"}, sort_keys=True))
             continue
         move_incomplete(raw_dir)
-        if (
+        if args.norm_preserving:
+            intervention_context = norm_preserving_weight_equivalent_ablation_hooks(
+                model,
+                cfg,
+                candidates[key],
+                args.alpha,
+                attention_alpha=args.attention_alpha,
+                mlp_alpha=args.mlp_alpha,
+                generation_uses_mtp=False,
+            )
+        elif (
             requested_layers
             or args.attention_alpha is not None
             or args.mlp_alpha is not None
@@ -669,6 +752,7 @@ def main() -> int:
             "candidate_file": str(args.candidate_file),
             "candidate_file_sha256": candidate_file_sha256,
             "candidate_report": candidate_metadata,
+            "base_reused_from": base_reused_from,
             "candidate_count": len(candidate_keys),
             "prompt_sources": prompt_sources,
             "max_new_tokens": args.max_new_tokens,
@@ -682,6 +766,7 @@ def main() -> int:
             "alpha": args.alpha,
             "attention_alpha": args.attention_alpha,
             "mlp_alpha": args.mlp_alpha,
+            "norm_preserving": args.norm_preserving,
             "target_layers": target_layers or None,
             "attention_layers": attention_layers or None,
             "mlp_layers": mlp_layers or None,

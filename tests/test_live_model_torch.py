@@ -269,6 +269,100 @@ class LiveModelTests(unittest.TestCase):
         self.assertEqual(record["module_count"], 3)
         self.assertEqual(len(record["bias_modules"]), 2)
 
+    def test_norm_preserving_hooks_match_explicit_projected_weights(self):
+        from swift_abliteration.intervention import (
+            norm_preserving_weight_equivalent_ablation_hooks,
+            project_activation,
+        )
+
+        class LinearAttention(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.out_proj = torch.nn.Linear(3, 4, bias=True)
+
+        class MLP(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.down_proj = torch.nn.Linear(5, 4, bias=False)
+
+        class Layer(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.linear_attn = LinearAttention()
+                self.mlp = MLP()
+
+        class Backbone(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.embed_tokens = torch.nn.Embedding(8, 4)
+                self.layers = torch.nn.ModuleList([Layer()])
+
+        class Root(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.model = torch.nn.Module()
+                self.model.language_model = Backbone()
+
+            def get_output_embeddings(self):
+                return None
+
+        def projected_writer(weight, direction, alpha):
+            row_norm = weight.norm(dim=1, keepdim=True)
+            unit = weight / row_norm
+            projected = project_activation(unit.transpose(0, 1), direction, alpha)
+            projected = projected.transpose(0, 1)
+            return row_norm * torch.nn.functional.normalize(projected, dim=1)
+
+        def projected_embedding(weight, direction, alpha):
+            row_norm = weight.norm(dim=1, keepdim=True)
+            projected = project_activation(weight, direction, alpha)
+            return row_norm * torch.nn.functional.normalize(projected, dim=1)
+
+        cfg = ExperimentConfig(
+            name="norm-preserving-equivalence",
+            seed=1,
+            model=ModelSpec("fake", "fake", "fake", "fake", 4, 5, 8, 3, 1, 1, 0),
+            direction=DirectionSpec(0, 1, "plain", 2, 2, True, "disabled"),
+            edit=EditSpec(
+                1.0, 0, 0, True, True, True, False, "float32", "bfloat16", True
+            ),
+        )
+        model = Root()
+        direction = torch.tensor([0.5, -1.0, 0.25, 0.75])
+        alpha = 0.8
+        token_ids = torch.tensor([[1, 4, 7]])
+        attention_input = torch.randn(2, 3, 3)
+        mlp_input = torch.randn(2, 3, 5)
+        embedding_weight = model.model.language_model.embed_tokens.weight.detach()
+        attention = model.model.language_model.layers[0].linear_attn.out_proj
+        mlp = model.model.language_model.layers[0].mlp.down_proj
+        expected_embedding = torch.nn.functional.embedding(
+            token_ids, projected_embedding(embedding_weight, direction, alpha)
+        )
+        expected_attention = torch.nn.functional.linear(
+            attention_input,
+            projected_writer(attention.weight.detach(), direction, alpha),
+            attention.bias,
+        )
+        expected_mlp = torch.nn.functional.linear(
+            mlp_input,
+            projected_writer(mlp.weight.detach(), direction, alpha),
+            mlp.bias,
+        )
+        with norm_preserving_weight_equivalent_ablation_hooks(
+            model, cfg, direction, alpha, column_chunk=2
+        ) as record:
+            observed = (
+                model.model.language_model.embed_tokens(token_ids),
+                attention(attention_input),
+                mlp(mlp_input),
+            )
+        for actual, expected in zip(observed, (expected_embedding, expected_attention, expected_mlp), strict=True):
+            torch.testing.assert_close(actual, expected, atol=2e-6, rtol=2e-6)
+        self.assertTrue(record["weight_equivalent"])
+        self.assertTrue(record["norm_preserving"])
+        self.assertEqual(record["module_count"], 3)
+
     def test_checkpoint_shard_edit_includes_checkpoint_only_mtp(self):
         from swift_abliteration.checkpoint_edit import edit_shard_tensors
 

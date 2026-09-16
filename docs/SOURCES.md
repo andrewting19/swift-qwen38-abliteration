@@ -15,6 +15,8 @@ The code uses the source commits below. The commit IDs protect the experiment fr
 - FailSpy dataset and split implementation: [FailSpy/abliterator](https://github.com/FailSpy/abliterator/blob/main/abliterator.py)
 - Heretic defaults: [p-e-w/heretic](https://github.com/p-e-w/heretic/blob/master/src/heretic/config.py)
 - Layer-band implementation linked by Huihui: [Sumandora/remove-refusals-with-transformers](https://github.com/Sumandora/remove-refusals-with-transformers)
+- Harmless-mean projection method: [Projected Abliteration](https://huggingface.co/blog/grimjim/projected-abliteration)
+- Row-norm-preserving edit method: [Norm-Preserving Biprojected Abliteration](https://huggingface.co/blog/grimjim/norm-preserving-biprojected-abliteration)
 - Broader method notes: [local method survey](../outputs/abliteration-model-method-survey.md)
 - Final local refusal judge: [WildGuard-Qwen3-4B](https://huggingface.co/Kotovskiy/Wildguard-Qwen3-4b)
 - Final local harmful-compliance cross-check: [HarmBench Llama-2 13B classifier](https://huggingface.co/cais/HarmBench-Llama-2-13b-cls)

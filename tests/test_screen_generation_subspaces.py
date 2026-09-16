@@ -6,6 +6,7 @@ import pytest
 
 from scripts.screen_generation_subspaces import (
     comparison_metrics,
+    copy_reused_base,
     flags_for_response,
     move_incomplete,
     valid_completed_arm,
@@ -105,6 +106,65 @@ def test_resume_requires_all_response_groups(tmp_path) -> None:
         )
         is None
     )
+
+
+def test_resume_accepts_required_signature_subset(tmp_path) -> None:
+    raw = tmp_path / "raw"
+    raw.mkdir()
+    response_hashes = {}
+    for group_name in ("standard_harmful", "matched_harmful", "xstest_safe"):
+        path = raw / f"{group_name}.jsonl"
+        path.write_text("{}\n", encoding="utf-8")
+        response_hashes[group_name] = hashlib.sha256(path.read_bytes()).hexdigest()
+    record = {
+        "candidate_sha256": None,
+        "prompt_source_sha256": {"source": "hash"},
+        "run_signature": {"generation": 1, "intervention": "old"},
+        "response_sha256": response_hashes,
+    }
+    record_path = tmp_path / "record.json"
+    record_path.write_text(json.dumps(record), encoding="utf-8")
+    assert valid_completed_arm(
+        record_path,
+        raw,
+        None,
+        {"source": "hash"},
+        {"generation": 1},
+    ) == record
+
+
+def test_copy_reused_base_checks_and_copies_all_artifacts(tmp_path) -> None:
+    source = tmp_path / "source"
+    destination = tmp_path / "destination"
+    (source / "arms").mkdir(parents=True)
+    (source / "raw/base").mkdir(parents=True)
+    (destination / "arms").mkdir(parents=True)
+    (destination / "raw").mkdir(parents=True)
+    response_hashes = {}
+    for group_name in ("standard_harmful", "matched_harmful", "xstest_safe"):
+        path = source / "raw/base" / f"{group_name}.jsonl"
+        path.write_text("{}\n", encoding="utf-8")
+        response_hashes[group_name] = hashlib.sha256(path.read_bytes()).hexdigest()
+    logits = source / "arms/base_xstest_first_logits.npz"
+    np.savez(logits, logits=np.zeros((1, 2)))
+    record = {
+        "candidate_sha256": None,
+        "prompt_source_sha256": {"source": "hash"},
+        "run_signature": {"generation": 1, "intervention": "old"},
+        "response_sha256": response_hashes,
+        "xstest_logits_sha256": hashlib.sha256(logits.read_bytes()).hexdigest(),
+    }
+    (source / "arms/base.json").write_text(json.dumps(record), encoding="utf-8")
+    copied = copy_reused_base(
+        source,
+        destination,
+        {"source": "hash"},
+        {"generation": 1},
+    )
+    assert copied == record
+    assert (destination / "arms/base.json").is_file()
+    assert (destination / "arms/base_xstest_first_logits.npz").is_file()
+    assert len(list((destination / "raw/base").glob("*.jsonl"))) == 3
 
 
 def test_move_incomplete_uses_unique_names(tmp_path) -> None:
