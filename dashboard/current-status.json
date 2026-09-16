@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-09-16T01:25:00-04:00",
+  "updated_at": "2026-09-16T01:49:53-04:00",
   "run": {
     "id": "20260916-independent-reconstruction",
-    "status": "analysis complete; regularized edit pending",
+    "status": "first regularized screen failed; layerwise candidate ready",
     "experiment": "Swift Qwen3.8 independent refusal-direction reconstruction",
     "visibility": "safe aggregate view; prompt and generation bodies omitted"
   },
@@ -16,17 +16,17 @@
     "estimated_cost_usd": null
   },
   "credit": {
-    "balance_usd": 0.57,
+    "balance_usd": 0.086,
     "top_up_usd": 5.0,
-    "policy": "do not restart without a defined regularized-edit test",
+    "policy": "do not restart until the prepared layerwise candidate can complete",
     "note": "Last observed balance; stopped storage costs about $0.044 per hour"
   },
   "progress": {
     "phase": "method redesign",
-    "phase_label": "Regularized edit design",
-    "phase_detail": "The norm-preserving reversible edit and projected local candidates are ready. The simple full-strength projection has too much harmless-output drift.",
-    "label": "Regularized edit implementation ready",
-    "percent": 86,
+    "phase_label": "Layerwise biprojection ready",
+    "phase_detail": "Norm preservation, source-layer projection, component splits, and one layer-band arm failed. Target-layer harmless means were captured for all 64 layers.",
+    "label": "Next reversible candidate prepared",
+    "percent": 88,
     "steps": [
       {"label": "Position capture", "state": "done"},
       {"label": "80-way screen", "state": "done"},
@@ -88,6 +88,21 @@
       "at": "2026-09-16T01:25:00-04:00",
       "kind": "local preparation",
       "message": "Norm-preserving weight-equivalent hooks, projected local candidates, and verified base-arm reuse are ready for the next rental."
+    },
+    {
+      "at": "2026-09-16T01:38:00-04:00",
+      "kind": "regularized screen",
+      "message": "Norm preservation and asymmetric component strengths failed the joint behavior and KL gate."
+    },
+    {
+      "at": "2026-09-16T01:44:00-04:00",
+      "kind": "layer sensitivity",
+      "message": "Restoring layers 0 through 7 reduced KL but lost too much generated refusal effect."
+    },
+    {
+      "at": "2026-09-16T01:49:53-04:00",
+      "kind": "reusable capture",
+      "message": "Masked harmless means for two positions and all 64 layers were captured and verified. The target-layer biprojected rank-2 tensor is ready."
     }
   ],
   "artifacts": [
@@ -167,6 +182,30 @@
         "value": "0",
         "count": 5,
         "state": "complete"
+      },
+      {
+        "arm": "source-projected rank 2, norm-preserving",
+        "group": "short validation",
+        "metric": "clean KL / minimum marker removal",
+        "value": "0.2727 / 93.75%",
+        "count": 48,
+        "state": "failed 0.10 KL gate"
+      },
+      {
+        "arm": "attention 1.0, MLP 0.9",
+        "group": "short validation",
+        "metric": "clean KL / minimum marker removal",
+        "value": "0.1965 / 50.0%",
+        "count": 48,
+        "state": "failed behavior and KL gates"
+      },
+      {
+        "arm": "target-layer biprojected rank 2",
+        "group": "64 layers",
+        "metric": "prepared tensor shape",
+        "value": "64 x 2 x 5120",
+        "count": 64,
+        "state": "ready for reversible screen"
       },
       {
         "arm": "experiment controls",

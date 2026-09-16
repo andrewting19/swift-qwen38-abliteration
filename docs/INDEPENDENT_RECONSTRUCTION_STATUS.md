@@ -128,11 +128,25 @@ No alpha passed both the 0.10 KL limit and the substantive-behavior requirement.
 ## Decision
 
 Do not search more random mean-difference directions with the same edit rule.
-The next experiment should keep the locally reconstructed direction or rank-2
-subspace and change the edit rule. Test a capability-preserving regularized
-projection, such as preservation-aware projection or a PRE-style normalized
-edit. The first test must be reversible and must reuse saved activations and
-the current validation groups.
+The first regularized-edit screen is complete. Row-norm preservation,
+source-layer harmless-mean projection, two component-strength splits, and one
+layer-band candidate all failed the joint behavior and KL gate.
+
+| Short reversible arm | Clean harmless KL | Minimum refusal-marker removal |
+| --- | ---: | ---: |
+| Original rank 2, norm-preserving | 0.2450 | 87.5% |
+| Original rank 1, norm-preserving | 0.2981 | 75.0% |
+| Source-projected rank 1, norm-preserving | 0.3135 | 75.0% |
+| Source-projected rank 2, norm-preserving | 0.2727 | 93.75% |
+| Attention 1.0, MLP 0.9 | 0.1965 | 50.0% |
+| Attention 0.9, MLP 1.0 | 0.2172 | 68.75% |
+| Restore layers 0 through 7 | 0.1968 | 56.25% |
+
+The next candidate is true target-layer biprojection. A new reusable capture
+contains harmless means for positions -12 and -13 at all 64 layers. The local
+builder projects each source row away from the matching harmless mean at every
+target layer, then makes a rank-2 basis with QR. The resulting tensor has shape
+`[64, 2, 5120]`. This candidate is ready for a reversible short screen.
 
 Do not run the final-test split or create a checkpoint until one arm passes all
 fixed gates. Do not run the full capability suite while the current arm still
@@ -141,7 +155,7 @@ fails the harmless KL gate, unless the user accepts a new gate.
 ## Compute state
 
 Vast instance `51156146` is stopped. The last observed account credit was about
-$0.57. The stopped disk costs about $0.044 per hour. All required result files
+$0.086. The stopped disk costs about $0.044 per hour. All required result files
 from this run were copied to the local repository workspace.
 
 The final-test split remains unused. No permanent edited checkpoint exists.

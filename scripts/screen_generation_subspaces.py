@@ -131,13 +131,22 @@ def validate_basis(tensor: Any) -> int:
         if not torch.isfinite(tensor).all() or float(tensor.norm()) <= 0:
             raise ValueError("Rank-1 direction must be finite and nonzero.")
         return 1
-    if tensor.ndim != 2 or tensor.shape[0] < 1:
-        raise ValueError("Candidate tensor must be one vector or a row basis.")
-    gram = tensor.float() @ tensor.float().transpose(0, 1)
-    identity = torch.eye(tensor.shape[0], dtype=gram.dtype)
-    if not torch.allclose(gram, identity, atol=2e-4, rtol=2e-4):
-        raise ValueError("Candidate row basis is not orthonormal.")
-    return int(tensor.shape[0])
+    if tensor.ndim == 2 and tensor.shape[0] > 0:
+        gram = tensor.float() @ tensor.float().transpose(0, 1)
+        identity = torch.eye(tensor.shape[0], dtype=gram.dtype)
+        if not torch.allclose(gram, identity, atol=2e-4, rtol=2e-4):
+            raise ValueError("Candidate row basis is not orthonormal.")
+        return int(tensor.shape[0])
+    if tensor.ndim == 3 and tensor.shape[0] > 0 and tensor.shape[1] > 0:
+        values = tensor.float()
+        gram = values @ values.transpose(1, 2)
+        identity = torch.eye(tensor.shape[1], dtype=gram.dtype).expand_as(gram)
+        if not torch.allclose(gram, identity, atol=2e-4, rtol=2e-4):
+            raise ValueError("Layerwise candidate row bases are not orthonormal.")
+        return int(tensor.shape[1])
+    raise ValueError(
+        "Candidate tensor must be one vector, one row basis, or layerwise row bases."
+    )
 
 
 def flags_for_response(text: str) -> dict[str, bool]:
@@ -406,7 +415,8 @@ def main() -> int:
     parser.add_argument(
         "--split-role",
         choices=("selection", "validation", "final_test"),
-        default="selection",
+        default="validation",
+        help="Role of the prompt files. The default evaluation paths are validation data.",
     )
     parser.add_argument("--harmful-offset", type=int, default=0)
     parser.add_argument("--harmful-limit", type=int, default=16)
@@ -599,7 +609,8 @@ def main() -> int:
 
     results = {}
     for index, key in enumerate(candidate_keys, start=1):
-        candidate_sha256 = tensor_sha256(candidates[key])
+        candidate = candidates[key]
+        candidate_sha256 = tensor_sha256(candidate)
         record_path = arms_dir / f"{key}.json"
         raw_dir = raw_root / key
         completed = valid_completed_arm(
@@ -614,11 +625,39 @@ def main() -> int:
             print(json.dumps({"candidate": key, "status": "resumed"}, sort_keys=True))
             continue
         move_incomplete(raw_dir)
-        if args.norm_preserving:
+        if candidate.ndim == 3:
+            if args.norm_preserving:
+                raise ValueError(
+                    "Norm preservation is not implemented for layerwise candidates."
+                )
+            if candidate.shape[0] != cfg.model.num_layers:
+                raise ValueError(
+                    f"Layerwise candidate has {candidate.shape[0]} layers, "
+                    f"expected {cfg.model.num_layers}: {key}"
+                )
+            active_layers = requested_layers or list(
+                range(cfg.edit.first_layer, cfg.edit.last_layer + 1)
+            )
+            intervention_context = layerwise_weight_equivalent_ablation_hooks(
+                model,
+                cfg,
+                {layer: candidate[layer] for layer in active_layers},
+                args.alpha,
+                embedding_direction=(
+                    candidate[cfg.edit.first_layer]
+                    if cfg.edit.include_embedding
+                    else None
+                ),
+                attention_alpha=args.attention_alpha,
+                mlp_alpha=args.mlp_alpha,
+                attention_layers=set(attention_layers) if attention_layers else None,
+                mlp_layers=set(mlp_layers) if mlp_layers else None,
+            )
+        elif args.norm_preserving:
             intervention_context = norm_preserving_weight_equivalent_ablation_hooks(
                 model,
                 cfg,
-                candidates[key],
+                candidate,
                 args.alpha,
                 attention_alpha=args.attention_alpha,
                 mlp_alpha=args.mlp_alpha,
@@ -635,10 +674,10 @@ def main() -> int:
             intervention_context = layerwise_weight_equivalent_ablation_hooks(
                 model,
                 cfg,
-                {layer: candidates[key] for layer in active_layers},
+                {layer: candidate for layer in active_layers},
                 args.alpha,
                 embedding_direction=(
-                    candidates[key] if cfg.edit.include_embedding else None
+                    candidate if cfg.edit.include_embedding else None
                 ),
                 attention_alpha=args.attention_alpha,
                 mlp_alpha=args.mlp_alpha,
@@ -647,7 +686,7 @@ def main() -> int:
             )
         else:
             intervention_context = weight_equivalent_ablation_hooks(
-                model, cfg, candidates[key], args.alpha, generation_uses_mtp=False
+                model, cfg, candidate, args.alpha, generation_uses_mtp=False
             )
         with intervention_context as intervention:
             arm_metrics, candidate_logits, candidate_batch_size = (

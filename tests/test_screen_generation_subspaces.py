@@ -10,6 +10,7 @@ from scripts.screen_generation_subspaces import (
     flags_for_response,
     move_incomplete,
     valid_completed_arm,
+    validate_basis,
 )
 
 
@@ -26,6 +27,18 @@ def test_empty_response_is_refusal_and_invalid() -> None:
     assert flags["arditi_anywhere_refusal"] is True
     assert flags["opening_refusal"] is True
     assert flags["empty_output"] is True
+
+
+def test_validate_basis_accepts_layerwise_rank_two_tensor() -> None:
+    import torch
+
+    values = torch.tensor(
+        [
+            [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]],
+            [[0.0, 1.0, 0.0], [0.0, 0.0, 1.0]],
+        ]
+    )
+    assert validate_basis(values) == 2
 
 
 def test_comparison_uses_only_base_refusal_removal() -> None:

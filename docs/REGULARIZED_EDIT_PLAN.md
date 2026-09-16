@@ -48,22 +48,43 @@ equivalent to the edited weight. It supports rank 1, rank 2, separate attention
 and MLP strengths, biases, and the embedding. A numerical unit test compares
 the hook with an explicit edited weight.
 
-## Candidate order
+## Completed screen
 
 Use one model load. Reuse an existing verified base arm when the prompts and
 generation settings match.
 
-Fast screen, 48 tokens:
+The following short arms are complete:
 
-1. Original position -13, layer-32 rank 1 with norm preservation.
-2. Original complementary rank 2 with norm preservation.
-3. Projected position -13, layer-32 rank 1 with norm preservation.
-4. Projected complementary rank 2 with norm preservation.
-5. Original rank 2 with attention alpha 1.0 and MLP alpha 0.9.
-6. Original rank 2 with attention alpha 0.9 and MLP alpha 1.0.
+| Arm | Clean harmless KL | Minimum refusal-marker removal |
+| --- | ---: | ---: |
+| Original rank 2, norm-preserving | 0.2450 | 87.5% |
+| Original rank 1, norm-preserving | 0.2981 | 75.0% |
+| Source-projected rank 1, norm-preserving | 0.3135 | 75.0% |
+| Source-projected rank 2, norm-preserving | 0.2727 | 93.75% |
+| Attention 1.0, MLP 0.9 | 0.1965 | 50.0% |
+| Attention 0.9, MLP 1.0 | 0.2172 | 68.75% |
+| Restore layers 0 through 7 | 0.1968 | 56.25% |
 
-Advance at most two arms. Use short-screen refusal markers only as a filter, not
-as the final behavior result.
+No arm passed the 0.10 KL gate. No arm advances to 256-token confirmation.
+
+## Next candidate
+
+The failed source-projected arms used the harmless mean only at source layer 32.
+Target-layer biprojection uses a different harmless mean at every edited layer.
+
+The completed reusable capture contains masked harmless means for positions -12
+and -13 at all 64 layers. The prepared candidate has shape `[64, 2, 5120]`.
+For each target layer, it:
+
+1. Projects the position -12 direction away from that layer's position -12
+   harmless mean.
+2. Projects the position -13 direction away from that layer's position -13
+   harmless mean.
+3. Uses QR to make the two rows orthonormal.
+
+The minimum principal cosine between an original and layer-specific rank-2
+subspace is 0.9737. The change is larger than source-layer projection but still
+controlled. Run this one candidate next with the reversible layerwise hook.
 
 Confirmation, 256 tokens:
 
@@ -96,11 +117,13 @@ use the final-test split and do not create a checkpoint.
 
 ## Estimated next rental
 
-With the model and judge caches still on the stopped instance, the fast screen
-and two confirmations should require about 1.5 to 3.0 GPU hours. At the current
-rate of about $1.47 per hour, the expected compute cost is about $2.20 to $4.40.
-This is an estimate. Generation throughput is the main uncertainty.
+With the model and judge caches still on the stopped instance, the one-candidate
+short screen should require about 0.15 to 0.4 GPU hours. If it passes, a
+256-token confirmation and local HarmBench pass should require another 0.4 to
+0.8 GPU hours. At the current rate of about $1.47 per hour, the expected total
+cost is about $0.80 to $1.80. This is an estimate. Generation throughput is the
+main uncertainty.
 
-The last observed Vast balance was about $0.57. Do not restart the instance for
+The last observed Vast balance was about $0.086. Do not restart the instance for
 this plan until enough credit is available to complete artifact transfer and a
 safe stop.
