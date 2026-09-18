@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-09-18T11:11:30-04:00",
+  "updated_at": "2026-09-18T11:25:00-04:00",
   "run": {
     "id": "20260916-independent-reconstruction",
-    "status": "target-layer biprojected screen complete; joint gate failed",
+    "status": "writer-selection screen complete; simple projection frontier exhausted",
     "experiment": "Swift Qwen3.8 independent refusal-direction reconstruction",
     "visibility": "safe aggregate view; prompt and generation bodies omitted"
   },
@@ -16,17 +16,17 @@
     "estimated_cost_usd": null
   },
   "credit": {
-    "balance_usd": 9.06,
+    "balance_usd": 8.8,
     "top_up_usd": 0.0,
     "policy": "do not restart until a new intervention is designed and validated locally",
     "note": "Last observed credit; stopped storage costs about $0.044 per hour"
   },
   "progress": {
     "phase": "method redesign",
-    "phase_label": "Layerwise biprojection failed the KL gate",
-    "phase_detail": "The target-layer rank-2 arm removed short-screen refusal markers from 75% of both harmful groups, but clean harmless KL was 0.2340 nats.",
-    "label": "New edit design required",
-    "percent": 90,
+    "phase_label": "Writer pruning confirmed the same trade-off",
+    "phase_detail": "A 129-writer proxy scan and two generated boundary arms found no subset that preserves refusal effect while passing the 0.10 KL gate.",
+    "label": "New edit geometry required",
+    "percent": 94,
     "steps": [
       {"label": "Position capture", "state": "done"},
       {"label": "80-way screen", "state": "done"},
@@ -109,6 +109,11 @@
       "at": "2026-09-18T11:11:30-04:00",
       "kind": "layerwise result",
       "message": "Target-layer biprojection removed 75% of short-screen refusal markers in both harmful groups but failed the clean harmless KL gate at 0.2340 nats."
+    },
+    {
+      "at": "2026-09-18T11:25:00-04:00",
+      "kind": "writer selection",
+      "message": "Restoring 48 writers passed the KL gate at 0.0910 but retained only 6.25% minimum generated marker removal; restoring 24 writers failed both gates."
     }
   ],
   "artifacts": [
@@ -133,6 +138,12 @@
     {
       "label": "Target-layer biprojected short-screen report",
       "path": "runs/gpu/20260916-layerwise-biprojected-rank2-short-retry-51156146/layerwise_biprojected_rank2_short_report.json",
+      "size": "safe aggregate report",
+      "sha256": "stored in run artifacts"
+    },
+    {
+      "label": "Writer-sensitivity report",
+      "path": "runs/gpu/20260918-layerwise-writer-sensitivity-51156146/output/layerwise_writer_sensitivity_report.json",
       "size": "safe aggregate report",
       "sha256": "stored in run artifacts"
     }
@@ -218,6 +229,22 @@
         "value": "0.2340 / 75.0%",
         "count": 48,
         "state": "failed 0.10 KL gate"
+      },
+      {
+        "arm": "target-layer rank 2, restore 24 writers",
+        "group": "short validation",
+        "metric": "clean KL / minimum marker removal",
+        "value": "0.1949 / 62.5%",
+        "count": 48,
+        "state": "failed behavior and KL gates"
+      },
+      {
+        "arm": "target-layer rank 2, restore 48 writers",
+        "group": "short validation",
+        "metric": "clean KL / minimum marker removal",
+        "value": "0.0910 / 6.25%",
+        "count": 48,
+        "state": "passed KL; failed behavior gate"
       },
       {
         "arm": "experiment controls",

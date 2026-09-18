@@ -65,6 +65,8 @@ The following short arms are complete:
 | Attention 0.9, MLP 1.0 | 0.2172 | 68.75% |
 | Restore layers 0 through 7 | 0.1968 | 56.25% |
 | Target-layer biprojected rank 2 | 0.2340 | 75.0% |
+| Target-layer rank 2, restore 24 writers | 0.1949 | 62.5% |
+| Target-layer rank 2, restore 48 writers | 0.0910 | 6.25% |
 
 No arm passed the 0.10 KL gate. No arm advances to 256-token confirmation.
 
@@ -97,6 +99,13 @@ must change how layers or writer modules are selected or weighted, and it must
 have a cheap causal-versus-KL screen before full generation. There is currently
 no approved prepared GPU candidate.
 
+The writer-selection follow-up measured every embedding, attention-output, and
+MLP-down writer. It used leave-one-writer-out first-token effects and harmless
+KL to rank components, followed by cumulative restoration. The proxy frontier
+was confirmed with real 32-token generation at two boundary points. Passing the
+KL gate required enough restoration that almost all refusal-marker effect was
+lost. Binary writer selection of this rank-2 subspace is therefore complete.
+
 ## Decision gates
 
 Keep the existing fixed limits:
@@ -120,7 +129,8 @@ use the final-test split and do not create a checkpoint.
 
 ## Compute state
 
-The completed target-layer result was copied and hash-verified locally. The
-project instance is stopped. The last observed Vast credit was about $9.06.
+The completed target-layer and writer-selection results were copied and
+hash-verified locally. The project instance is stopped. The last observed Vast
+credit was about $8.80.
 Do not restart the instance until the next intervention has been designed and
 validated locally.

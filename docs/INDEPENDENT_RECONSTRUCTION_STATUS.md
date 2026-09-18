@@ -25,6 +25,17 @@ group, but clean harmless KL was 0.2340 nats. It did not increase safe refusal,
 produce empty outputs, or produce severe repetition. It therefore failed only
 the harmless-KL gate, but by a material margin.
 
+A leave-one-writer-out scan then ranked all 129 editable components by recovered
+harmless KL versus lost first-token refusal-score effect. Cumulative writer
+restoration did not find a better frontier. Restoring 24 writers kept 87.8% of
+the proxy effect but had proxy KL 0.2441. Restoring 48 writers reduced proxy KL
+to 0.1042 but kept only 28.1% of the effect.
+
+Full-generation checks confirmed this result. The 24-writer-restored arm had
+clean harmless KL 0.1949 and minimum refusal-marker removal 62.5%. The
+48-writer-restored arm passed the KL gate at 0.0910 but removed markers from
+only 6.25% of the weaker harmful group.
+
 The current problem is not a failure to find a refusal signal. The problem is
 that a simple orthogonal weight projection changes too much harmless behavior
 at the strength that is required for substantive task completion.
@@ -148,6 +159,8 @@ layer-band candidate all failed the joint behavior and KL gate.
 | Attention 0.9, MLP 1.0 | 0.2172 | 68.75% |
 | Restore layers 0 through 7 | 0.1968 | 56.25% |
 | Target-layer biprojected rank 2 | 0.2340 | 75.0% |
+| Target-layer rank 2, restore 24 writers | 0.1949 | 62.5% |
+| Target-layer rank 2, restore 48 writers | 0.0910 | 6.25% |
 
 True target-layer biprojection is complete. A reusable capture contains
 harmless means for positions -12 and -13 at all 64 layers. The local builder
@@ -157,9 +170,10 @@ layer, then made a rank-2 basis with QR. The resulting tensor had shape
 behavior-versus-KL trade-off.
 
 There is no untested prepared candidate that justifies a longer confirmation.
-The next method must change how writer modules or layer strengths are selected;
-another full-strength rotation of the same two-dimensional subspace is not
-supported by these results.
+Binary writer selection is now also ruled out for this subspace. The next
+method must change the edit geometry or training objective; another
+full-strength rotation, uniform alpha, or subset of the same two-dimensional
+subspace is not supported by these results.
 
 Do not run the final-test split or create a checkpoint until one arm passes all
 fixed gates. Do not run the full capability suite while the current arm still
@@ -167,9 +181,9 @@ fails the harmless KL gate, unless the user accepts a new gate.
 
 ## Compute state
 
-Vast instance `51156146` was stopped after the completed layerwise result was
-copied and hash-verified locally. The last observed account credit was about
-$9.06. The stopped disk costs about $0.044 per hour. All required result files
+Vast instance `51156146` was stopped after the writer-sensitivity and generation
+results were copied and hash-verified locally. The last observed account credit
+was about $8.80. The stopped disk costs about $0.044 per hour. All required result files
 from this run are in the local repository workspace.
 
 The final-test split remains unused. No permanent edited checkpoint exists.

@@ -7,7 +7,8 @@ HarmBench successes. A justified local rank-2 arm reached 9 of 16 and 11 of 16,
 with clean harmless KL of 0.2316 nats. The regularized-edit screen and the
 target-layer biprojected rank-2 arm failed the joint behavior and KL gate. Do
 not repeat the same mean-difference search or another full-strength rotation of
-the same subspace.
+the same subspace. A 129-writer sensitivity scan and two generated boundary
+checks also ruled out binary writer pruning of that subspace.
 The completed regularized screen and the requirements for the next method are
 in `docs/REGULARIZED_EDIT_PLAN.md`.
 
@@ -29,7 +30,7 @@ The direction-quality analysis and the final evaluation report are primary outpu
 - Use one rented GPU at a time.
 - Do not add Vast.ai credit automatically.
 - Vast instance `51156146` is stopped with its model and judge caches retained.
-  The last observed credit was about $9.06. The stopped disk costs about
+  The last observed credit was about $8.80. The stopped disk costs about
   $0.044 per hour. Required result artifacts are present locally.
 - Do not put raw harmful prompts or harmful generations in Git or in the chat.
 - Do not send experiment prompts or responses to OpenAI models or APIs. Use only local open-weight judges for evaluation.
