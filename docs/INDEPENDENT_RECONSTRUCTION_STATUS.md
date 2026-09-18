@@ -1,6 +1,6 @@
 # Independent Direction Reconstruction Status
 
-Last updated: 2026-09-16
+Last updated: 2026-09-18
 
 ## Objective
 
@@ -18,6 +18,12 @@ caused substantive harmful-task completion on 8 of 16 standard cases and 11 of
 A rank-2 edit made from two complementary local directions improved the local
 result to 9 of 16 and 11 of 16. It also reduced clean harmless KL from 0.2742
 to 0.2316 nats. It did not pass the fixed KL limit of 0.10 nats.
+
+The later target-layer biprojected rank-2 arm also failed. In the 32-token
+short screen, it removed deterministic refusal markers from 75% of each harmful
+group, but clean harmless KL was 0.2340 nats. It did not increase safe refusal,
+produce empty outputs, or produce severe repetition. It therefore failed only
+the harmless-KL gate, but by a material margin.
 
 The current problem is not a failure to find a refusal signal. The problem is
 that a simple orthogonal weight projection changes too much harmless behavior
@@ -141,12 +147,19 @@ layer-band candidate all failed the joint behavior and KL gate.
 | Attention 1.0, MLP 0.9 | 0.1965 | 50.0% |
 | Attention 0.9, MLP 1.0 | 0.2172 | 68.75% |
 | Restore layers 0 through 7 | 0.1968 | 56.25% |
+| Target-layer biprojected rank 2 | 0.2340 | 75.0% |
 
-The next candidate is true target-layer biprojection. A new reusable capture
-contains harmless means for positions -12 and -13 at all 64 layers. The local
-builder projects each source row away from the matching harmless mean at every
-target layer, then makes a rank-2 basis with QR. The resulting tensor has shape
-`[64, 2, 5120]`. This candidate is ready for a reversible short screen.
+True target-layer biprojection is complete. A reusable capture contains
+harmless means for positions -12 and -13 at all 64 layers. The local builder
+projected each source row away from the matching harmless mean at every target
+layer, then made a rank-2 basis with QR. The resulting tensor had shape
+`[64, 2, 5120]`. Its reversible short screen did not improve the joint
+behavior-versus-KL trade-off.
+
+There is no untested prepared candidate that justifies a longer confirmation.
+The next method must change how writer modules or layer strengths are selected;
+another full-strength rotation of the same two-dimensional subspace is not
+supported by these results.
 
 Do not run the final-test split or create a checkpoint until one arm passes all
 fixed gates. Do not run the full capability suite while the current arm still
@@ -154,8 +167,9 @@ fails the harmless KL gate, unless the user accepts a new gate.
 
 ## Compute state
 
-Vast instance `51156146` is stopped. The last observed account credit was about
-$0.086. The stopped disk costs about $0.044 per hour. All required result files
-from this run were copied to the local repository workspace.
+Vast instance `51156146` was stopped after the completed layerwise result was
+copied and hash-verified locally. The last observed account credit was about
+$9.06. The stopped disk costs about $0.044 per hour. All required result files
+from this run are in the local repository workspace.
 
 The final-test split remains unused. No permanent edited checkpoint exists.

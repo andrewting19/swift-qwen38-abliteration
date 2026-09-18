@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-09-16T01:49:53-04:00",
+  "updated_at": "2026-09-18T11:11:30-04:00",
   "run": {
     "id": "20260916-independent-reconstruction",
-    "status": "first regularized screen failed; layerwise candidate ready",
+    "status": "target-layer biprojected screen complete; joint gate failed",
     "experiment": "Swift Qwen3.8 independent refusal-direction reconstruction",
     "visibility": "safe aggregate view; prompt and generation bodies omitted"
   },
@@ -16,23 +16,24 @@
     "estimated_cost_usd": null
   },
   "credit": {
-    "balance_usd": 0.086,
-    "top_up_usd": 5.0,
-    "policy": "do not restart until the prepared layerwise candidate can complete",
-    "note": "Last observed balance; stopped storage costs about $0.044 per hour"
+    "balance_usd": 9.06,
+    "top_up_usd": 0.0,
+    "policy": "do not restart until a new intervention is designed and validated locally",
+    "note": "Last observed credit; stopped storage costs about $0.044 per hour"
   },
   "progress": {
     "phase": "method redesign",
-    "phase_label": "Layerwise biprojection ready",
-    "phase_detail": "Norm preservation, source-layer projection, component splits, and one layer-band arm failed. Target-layer harmless means were captured for all 64 layers.",
-    "label": "Next reversible candidate prepared",
-    "percent": 88,
+    "phase_label": "Layerwise biprojection failed the KL gate",
+    "phase_detail": "The target-layer rank-2 arm removed short-screen refusal markers from 75% of both harmful groups, but clean harmless KL was 0.2340 nats.",
+    "label": "New edit design required",
+    "percent": 90,
     "steps": [
       {"label": "Position capture", "state": "done"},
       {"label": "80-way screen", "state": "done"},
       {"label": "Rank-1 confirm", "state": "done"},
       {"label": "Rank-2 confirm", "state": "done"},
-      {"label": "Regularized edit", "state": "active"}
+      {"label": "Regularized edit", "state": "done"},
+      {"label": "New edit design", "state": "active"}
     ]
   },
   "direction_quality": {
@@ -103,6 +104,11 @@
       "at": "2026-09-16T01:49:53-04:00",
       "kind": "reusable capture",
       "message": "Masked harmless means for two positions and all 64 layers were captured and verified. The target-layer biprojected rank-2 tensor is ready."
+    },
+    {
+      "at": "2026-09-18T11:11:30-04:00",
+      "kind": "layerwise result",
+      "message": "Target-layer biprojection removed 75% of short-screen refusal markers in both harmful groups but failed the clean harmless KL gate at 0.2340 nats."
     }
   ],
   "artifacts": [
@@ -121,6 +127,12 @@
     {
       "label": "Rank-2 confirmation report",
       "path": "runs/gpu/20260916-harmbench-rank2-confirm-51156146/harmbench_rank2_confirm_report.json",
+      "size": "safe aggregate report",
+      "sha256": "stored in run artifacts"
+    },
+    {
+      "label": "Target-layer biprojected short-screen report",
+      "path": "runs/gpu/20260916-layerwise-biprojected-rank2-short-retry-51156146/layerwise_biprojected_rank2_short_report.json",
       "size": "safe aggregate report",
       "sha256": "stored in run artifacts"
     }
@@ -201,11 +213,11 @@
       },
       {
         "arm": "target-layer biprojected rank 2",
-        "group": "64 layers",
-        "metric": "prepared tensor shape",
-        "value": "64 x 2 x 5120",
-        "count": 64,
-        "state": "ready for reversible screen"
+        "group": "short validation",
+        "metric": "clean KL / minimum marker removal",
+        "value": "0.2340 / 75.0%",
+        "count": 48,
+        "state": "failed 0.10 KL gate"
       },
       {
         "arm": "experiment controls",

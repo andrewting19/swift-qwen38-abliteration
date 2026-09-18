@@ -4,13 +4,14 @@ The current result and next approved reversible experiment are defined in
 `docs/INDEPENDENT_RECONSTRUCTION_STATUS.md`. The 80-candidate prompt-position
 sweep is complete. The best local rank-1 arm reached 8 of 16 and 11 of 16
 HarmBench successes. A justified local rank-2 arm reached 9 of 16 and 11 of 16,
-with clean harmless KL of 0.2316 nats. The first regularized-edit screen failed.
-The next experiment is the prepared target-layer biprojected rank-2 candidate.
-Do not repeat the same mean-difference search with the same projection rule.
-The completed regularized screen and exact next candidate are in
-`docs/REGULARIZED_EDIT_PLAN.md`.
+with clean harmless KL of 0.2316 nats. The regularized-edit screen and the
+target-layer biprojected rank-2 arm failed the joint behavior and KL gate. Do
+not repeat the same mean-difference search or another full-strength rotation of
+the same subspace.
+The completed regularized screen and the requirements for the next method are
+in `docs/REGULARIZED_EDIT_PLAN.md`.
 
-Last updated: 2026-09-16
+Last updated: 2026-09-18
 
 This file is the source of truth for the project goal, current authority, execution order, decision gates, and restart procedure. Read this file first after a context reset or a new session.
 
@@ -28,7 +29,7 @@ The direction-quality analysis and the final evaluation report are primary outpu
 - Use one rented GPU at a time.
 - Do not add Vast.ai credit automatically.
 - Vast instance `51156146` is stopped with its model and judge caches retained.
-  The last observed balance was about $0.086. The stopped disk costs about
+  The last observed credit was about $9.06. The stopped disk costs about
   $0.044 per hour. Required result artifacts are present locally.
 - Do not put raw harmful prompts or harmful generations in Git or in the chat.
 - Do not send experiment prompts or responses to OpenAI models or APIs. Use only local open-weight judges for evaluation.

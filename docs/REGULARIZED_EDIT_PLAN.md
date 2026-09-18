@@ -1,6 +1,6 @@
 # Regularized Edit Plan
 
-Last updated: 2026-09-16
+Last updated: 2026-09-18
 
 ## Reason for this plan
 
@@ -64,16 +64,17 @@ The following short arms are complete:
 | Attention 1.0, MLP 0.9 | 0.1965 | 50.0% |
 | Attention 0.9, MLP 1.0 | 0.2172 | 68.75% |
 | Restore layers 0 through 7 | 0.1968 | 56.25% |
+| Target-layer biprojected rank 2 | 0.2340 | 75.0% |
 
 No arm passed the 0.10 KL gate. No arm advances to 256-token confirmation.
 
-## Next candidate
+## Target-layer result
 
 The failed source-projected arms used the harmless mean only at source layer 32.
 Target-layer biprojection uses a different harmless mean at every edited layer.
 
 The completed reusable capture contains masked harmless means for positions -12
-and -13 at all 64 layers. The prepared candidate has shape `[64, 2, 5120]`.
+and -13 at all 64 layers. The tested candidate has shape `[64, 2, 5120]`.
 For each target layer, it:
 
 1. Projects the position -12 direction away from that layer's position -12
@@ -83,16 +84,18 @@ For each target layer, it:
 3. Uses QR to make the two rows orthonormal.
 
 The minimum principal cosine between an original and layer-specific rank-2
-subspace is 0.9737. The change is larger than source-layer projection but still
-controlled. Run this one candidate next with the reversible layerwise hook.
+subspace is 0.9737. The short reversible screen removed refusal markers from
+75% of each harmful group. Clean harmless KL was 0.2340 nats on the 14 safe
+prompts answered by the base. It added no safe refusal and caused no empty or
+severely repeated outputs. Because it failed the KL gate, no 256-token
+confirmation or HarmBench run was started.
 
-Confirmation, 256 tokens:
+## Next design requirement
 
-1. Reuse the verified 256-token base arm.
-2. Generate the two selected candidates.
-3. Run local HarmBench once for both candidates.
-4. Calculate clean harmless KL, over-refusal, empty outputs, repetition, and
-   the secondary strict response label.
+Do not repeat a full-strength rotation of the same rank-2 subspace. A new arm
+must change how layers or writer modules are selected or weighted, and it must
+have a cheap causal-versus-KL screen before full generation. There is currently
+no approved prepared GPU candidate.
 
 ## Decision gates
 
@@ -115,15 +118,9 @@ use the final-test split and do not create a checkpoint.
 - No OpenAI model or remote judge is permitted.
 - The public Orca checkpoint remains a diagnostic positive control only.
 
-## Estimated next rental
+## Compute state
 
-With the model and judge caches still on the stopped instance, the one-candidate
-short screen should require about 0.15 to 0.4 GPU hours. If it passes, a
-256-token confirmation and local HarmBench pass should require another 0.4 to
-0.8 GPU hours. At the current rate of about $1.47 per hour, the expected total
-cost is about $0.80 to $1.80. This is an estimate. Generation throughput is the
-main uncertainty.
-
-The last observed Vast balance was about $0.086. Do not restart the instance for
-this plan until enough credit is available to complete artifact transfer and a
-safe stop.
+The completed target-layer result was copied and hash-verified locally. The
+project instance is stopped. The last observed Vast credit was about $9.06.
+Do not restart the instance until the next intervention has been designed and
+validated locally.
