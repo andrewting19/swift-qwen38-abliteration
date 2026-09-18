@@ -36,6 +36,19 @@ clean harmless KL 0.1949 and minimum refusal-marker removal 62.5%. The
 48-writer-restored arm passed the KL gate at 0.0910 but removed markers from
 only 6.25% of the weaker harmful group.
 
+The final simple-abliteration test measured a separate rank-2 direction at
+every layer. It used 128 base-refused harmful prompts and 128 base-answered
+harmless prompts. Coordinates 310 and 3994 passed the persistent massive-value
+rule in at least 90% of the 128 layer-position measurements. Median split-half
+direction cosine was 0.829.
+
+Applying each direction to the writer at the same layer had clean KL 0.0621 but
+zero refusal-marker removal. This mapping was one layer late: `resid_pre` at
+layer `i+1` is the state produced by writer layer `i`. Shifting the directions
+onto the correct writers restored 62.5% minimum marker removal, but clean KL
+increased to 0.3437. The layer-local reconstruction therefore also failed the
+joint gate.
+
 The current problem is not a failure to find a refusal signal. The problem is
 that a simple orthogonal weight projection changes too much harmless behavior
 at the strength that is required for substantive task completion.
@@ -161,6 +174,8 @@ layer-band candidate all failed the joint behavior and KL gate.
 | Target-layer biprojected rank 2 | 0.2340 | 75.0% |
 | Target-layer rank 2, restore 24 writers | 0.1949 | 62.5% |
 | Target-layer rank 2, restore 48 writers | 0.0910 | 6.25% |
+| Layer-local rank 2, unshifted diagnostic | 0.0621 | 0.0% |
+| Layer-local rank 2, writer-aligned | 0.3437 | 62.5% |
 
 True target-layer biprojection is complete. A reusable capture contains
 harmless means for positions -12 and -13 at all 64 layers. The local builder
@@ -173,7 +188,8 @@ There is no untested prepared candidate that justifies a longer confirmation.
 Binary writer selection is now also ruled out for this subspace. The next
 method must change the edit geometry or training objective; another
 full-strength rotation, uniform alpha, or subset of the same two-dimensional
-subspace is not supported by these results.
+subspace is not supported by these results. Independently measuring the
+subspace at every target layer is also ruled out under this edit rule.
 
 Do not run the final-test split or create a checkpoint until one arm passes all
 fixed gates. Do not run the full capability suite while the current arm still
@@ -183,7 +199,7 @@ fails the harmless KL gate, unless the user accepts a new gate.
 
 Vast instance `51156146` was stopped after the writer-sensitivity and generation
 results were copied and hash-verified locally. The last observed account credit
-was about $8.80. The stopped disk costs about $0.044 per hour. All required result files
+was about $8.45. The stopped disk costs about $0.044 per hour. All required result files
 from this run are in the local repository workspace.
 
 The final-test split remains unused. No permanent edited checkpoint exists.

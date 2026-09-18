@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-09-18T11:25:00-04:00",
+  "updated_at": "2026-09-18T11:43:33-04:00",
   "run": {
     "id": "20260916-independent-reconstruction",
-    "status": "writer-selection screen complete; simple projection frontier exhausted",
+    "status": "layer-local screen complete; simple orthogonal projection search exhausted",
     "experiment": "Swift Qwen3.8 independent refusal-direction reconstruction",
     "visibility": "safe aggregate view; prompt and generation bodies omitted"
   },
@@ -16,24 +16,24 @@
     "estimated_cost_usd": null
   },
   "credit": {
-    "balance_usd": 8.8,
+    "balance_usd": 8.45,
     "top_up_usd": 0.0,
     "policy": "do not restart until a new intervention is designed and validated locally",
     "note": "Last observed credit; stopped storage costs about $0.044 per hour"
   },
   "progress": {
     "phase": "method redesign",
-    "phase_label": "Writer pruning confirmed the same trade-off",
-    "phase_detail": "A 129-writer proxy scan and two generated boundary arms found no subset that preserves refusal effect while passing the 0.10 KL gate.",
-    "label": "New edit geometry required",
-    "percent": 94,
+    "phase_label": "Layer-local directions also failed",
+    "phase_detail": "Correctly writer-aligned layer-local directions restored 62.5% minimum marker removal but raised clean harmless KL to 0.3437.",
+    "label": "Simple abliteration search complete",
+    "percent": 100,
     "steps": [
       {"label": "Position capture", "state": "done"},
       {"label": "80-way screen", "state": "done"},
       {"label": "Rank-1 confirm", "state": "done"},
       {"label": "Rank-2 confirm", "state": "done"},
       {"label": "Regularized edit", "state": "done"},
-      {"label": "New edit design", "state": "active"}
+      {"label": "New edit design", "state": "done"}
     ]
   },
   "direction_quality": {
@@ -114,6 +114,11 @@
       "at": "2026-09-18T11:25:00-04:00",
       "kind": "writer selection",
       "message": "Restoring 48 writers passed the KL gate at 0.0910 but retained only 6.25% minimum generated marker removal; restoring 24 writers failed both gates."
+    },
+    {
+      "at": "2026-09-18T11:43:33-04:00",
+      "kind": "layer-local reconstruction",
+      "message": "Writer-aligned layer-local rank 2 restored 62.5% minimum marker removal but failed harmless KL at 0.3437."
     }
   ],
   "artifacts": [
@@ -144,6 +149,12 @@
     {
       "label": "Writer-sensitivity report",
       "path": "runs/gpu/20260918-layerwise-writer-sensitivity-51156146/output/layerwise_writer_sensitivity_report.json",
+      "size": "safe aggregate report",
+      "sha256": "stored in run artifacts"
+    },
+    {
+      "label": "Layer-local direction report",
+      "path": "runs/gpu/20260918-layerwise-behavior-rank2-persistent-51156146/output/layerwise_behavior_rank2_report.json",
       "size": "safe aggregate report",
       "sha256": "stored in run artifacts"
     }
@@ -245,6 +256,22 @@
         "value": "0.0910 / 6.25%",
         "count": 48,
         "state": "passed KL; failed behavior gate"
+      },
+      {
+        "arm": "layer-local rank 2, unshifted diagnostic",
+        "group": "short validation",
+        "metric": "clean KL / minimum marker removal",
+        "value": "0.0621 / 0.0%",
+        "count": 48,
+        "state": "passed KL; no behavior effect"
+      },
+      {
+        "arm": "layer-local rank 2, writer-aligned",
+        "group": "short validation",
+        "metric": "clean KL / minimum marker removal",
+        "value": "0.3437 / 62.5%",
+        "count": 48,
+        "state": "failed behavior and KL gates"
       },
       {
         "arm": "experiment controls",

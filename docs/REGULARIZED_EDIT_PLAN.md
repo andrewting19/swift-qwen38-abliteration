@@ -67,6 +67,8 @@ The following short arms are complete:
 | Target-layer biprojected rank 2 | 0.2340 | 75.0% |
 | Target-layer rank 2, restore 24 writers | 0.1949 | 62.5% |
 | Target-layer rank 2, restore 48 writers | 0.0910 | 6.25% |
+| Layer-local rank 2, unshifted diagnostic | 0.0621 | 0.0% |
+| Layer-local rank 2, writer-aligned | 0.3437 | 62.5% |
 
 No arm passed the 0.10 KL gate. No arm advances to 256-token confirmation.
 
@@ -106,6 +108,12 @@ was confirmed with real 32-token generation at two boundary points. Passing the
 KL gate required enough restoration that almost all refusal-marker effect was
 lost. Binary writer selection of this rank-2 subspace is therefore complete.
 
+A final candidate calculated the two behavior-filtered directions independently
+at every layer. The unshifted diagnostic passed KL but had no marker effect.
+Aligning each `resid_pre` direction with the previous layer's writers restored
+behavioral effect but raised KL to 0.3437. Layer-local mean-difference
+directions do not solve the trade-off under the same orthogonal edit.
+
 ## Decision gates
 
 Keep the existing fixed limits:
@@ -129,8 +137,8 @@ use the final-test split and do not create a checkpoint.
 
 ## Compute state
 
-The completed target-layer and writer-selection results were copied and
-hash-verified locally. The project instance is stopped. The last observed Vast
-credit was about $8.80.
+The completed target-layer, writer-selection, and layer-local results were
+copied and hash-verified locally. The project instance is stopped. The last
+observed Vast credit was about $8.45.
 Do not restart the instance until the next intervention has been designed and
 validated locally.
