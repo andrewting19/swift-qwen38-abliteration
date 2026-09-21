@@ -1,0 +1,54 @@
+{
+  "batch_size": 4,
+  "checkpoint": "/workspace/swift-abliteration/release-output/Swift-Qwen3.8-27B-Abliterated",
+  "first_token_ids": [
+    40711,
+    13672,
+    623,
+    51135,
+    332,
+    760,
+    760,
+    14004
+  ],
+  "max_new_tokens": 64,
+  "prompt_count": 8,
+  "prompt_file_sha256": "2e1f8800bafaad3b7b00eec48aea473d99ef16ff6c2677c89602b8b00ab14401",
+  "prompt_source": "data/prepared/xstest-safe/selection.jsonl",
+  "quality": {
+    "count": 8,
+    "empty_output_count": 0,
+    "maximum_repeated_ngram_coverage": 0.0,
+    "mean_token_count": 46.625,
+    "mean_unique_fourgram_ratio": 1.0,
+    "minimum_token_count": 38,
+    "minimum_unique_fourgram_ratio": 1.0,
+    "severe_repetition_count": 0,
+    "very_short_output_count": 0
+  },
+  "raw_prompt_text_recorded": false,
+  "raw_response_text_recorded": false,
+  "response_sha256": [
+    "3f9470e5eea8951a280b4987cf73202ab86b9bf1e7a618c6b3bd3ad9e38e7f61",
+    "398f66f4aab948d2ffe0570d77a05afc36e2740bed4c9f1a6b038061056ebc8e",
+    "4a0366b64960649dbb7a21669b216d66efa6b4d0af592076ae0f5690b86e463d",
+    "4df5f5ce9c6edb66c8905eeadacc108cc1df35ae52cde35e4c86bbdbcfa99d6c",
+    "4767f0738a24c8a2ed219337221bfa0e896b5d62dc64ae35a73b9eca82ae276e",
+    "79ea7d4da661f6975b2290094f4a45e81cf9b8bfafb2b68752e97fe43102553b",
+    "cf5556d8143497ab9829b827a03312427e3f8a49ac194941924e454d98be1a4f",
+    "6150e5ad1a94043178f64deacf65ce96825c11ecaead5224c6a0e9007bf44bb7"
+  ],
+  "status": "pass",
+  "system": {
+    "cuda": "12.8",
+    "cuda_available": true,
+    "git_commit": null,
+    "gpu_count": 1,
+    "gpus": [
+      "NVIDIA RTX PRO 6000 Blackwell Workstation Edition"
+    ],
+    "platform": "Linux-6.8.0-139-generic-x86_64-with-glibc2.35",
+    "python": "3.11.13",
+    "torch": "2.9.1+cu128"
+  }
+}

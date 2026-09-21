@@ -1,0 +1,43 @@
+{
+  "providers": {
+    "local-swift": {
+      "baseUrl": "http://127.0.0.1:8000/v1",
+      "api": "openai-completions",
+      "apiKey": "local-benchmark",
+      "authHeader": true,
+      "models": [
+        {
+          "id": "swift-abliterated",
+          "name": "Swift Qwen3.8 27B Abliterated (local)",
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "minimal": "low",
+            "low": "low",
+            "medium": "medium",
+            "high": "xhigh",
+            "xhigh": "xhigh",
+            "max": "xhigh"
+          },
+          "input": ["text"],
+          "contextWindow": 65536,
+          "maxTokens": 16384,
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "compat": {
+            "supportsFinishReason": false,
+            "thinkingFormat": "chat-template",
+            "chatTemplateKwargs": {
+              "enable_thinking": {"$var": "thinking.enabled"},
+              "preserve_thinking": true,
+              "reasoning_effort": {"$var": "thinking.effort", "omitWhenOff": true}
+            }
+          }
+        }
+      ]
+    }
+  }
+}

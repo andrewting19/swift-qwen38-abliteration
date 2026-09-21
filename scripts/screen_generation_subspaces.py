@@ -404,6 +404,16 @@ def main() -> int:
         help="Reuse a verified base arm from another compatible screen root.",
     )
     parser.add_argument("--candidate-key", action="append")
+    parser.add_argument(
+        "--skip-embedding-candidate-key",
+        action="append",
+        default=[],
+        help=(
+            "Do not project the token embedding for this candidate key. Repeat "
+            "for more keys. This permits a no-embedding arm and an embedding arm "
+            "in one model load."
+        ),
+    )
     parser.add_argument("--screen-name", required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument(
@@ -528,6 +538,12 @@ def main() -> int:
     missing = [key for key in candidate_keys if key not in candidates]
     if missing:
         raise KeyError(f"Candidate keys are missing: {missing}")
+    skip_embedding_keys = set(args.skip_embedding_candidate_key)
+    unknown_skip_keys = sorted(skip_embedding_keys - set(candidate_keys))
+    if unknown_skip_keys:
+        raise KeyError(
+            f"Embedding-skip keys are not selected candidates: {unknown_skip_keys}"
+        )
     ranks = {key: validate_basis(candidates[key]) for key in candidate_keys}
     candidate_file_sha256 = sha256_file(args.candidate_file)
 
@@ -667,6 +683,7 @@ def main() -> int:
             requested_layers
             or args.attention_alpha is not None
             or args.mlp_alpha is not None
+            or key in skip_embedding_keys
         ):
             active_layers = requested_layers or list(
                 range(cfg.edit.first_layer, cfg.edit.last_layer + 1)
@@ -677,7 +694,9 @@ def main() -> int:
                 {layer: candidate for layer in active_layers},
                 args.alpha,
                 embedding_direction=(
-                    candidate if cfg.edit.include_embedding else None
+                    candidate
+                    if cfg.edit.include_embedding and key not in skip_embedding_keys
+                    else None
                 ),
                 attention_alpha=args.attention_alpha,
                 mlp_alpha=args.mlp_alpha,
@@ -807,6 +826,7 @@ def main() -> int:
             "mlp_alpha": args.mlp_alpha,
             "norm_preserving": args.norm_preserving,
             "target_layers": target_layers or None,
+            "skip_embedding_candidate_keys": sorted(skip_embedding_keys),
             "attention_layers": attention_layers or None,
             "mlp_layers": mlp_layers or None,
             "refusal_rules": {

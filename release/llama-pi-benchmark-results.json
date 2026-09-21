@@ -1,0 +1,37 @@
+{
+  "date": "2026-09-19",
+  "hardware": {
+    "gpu": "NVIDIA GeForce RTX 5090",
+    "gpu_power_limit_watts": 570,
+    "cpu": "AMD EPYC 7542 32-Core Processor"
+  },
+  "target": {
+    "file": "Swift-Qwen3.8-27B-Abliterated-UD-Q3_K_XL.gguf",
+    "bytes": 13223069120,
+    "sha256": "19363c7b7d1e8337a20a7c13eef49fd6f614841f6d36a894ef058f79394eceb4"
+  },
+  "selected_profile": {
+    "draft": "Qwen3.8-27B-DFlash2-Q4_K_M.gguf",
+    "draft_sha256": "1a25c56858e1ebe93f2718ac1d49d1151f9323325c1bbfd6209370f4db131ebd",
+    "draft_n_max": 4,
+    "context_size": 262144,
+    "target_kv": "q4_0",
+    "draft_kv": "q4_0",
+    "batch_size": 8192,
+    "ubatch_size": 2048
+  },
+  "fixed_replay": {
+    "prompt_tokens": 120844,
+    "completion_tokens": 2048,
+    "decode_tps": 81.04258053195684,
+    "draft_acceptance": 0.48210
+  },
+  "live_pi_long_gate": {
+    "final_total_tokens": 104686,
+    "generated_tokens": 4863,
+    "weighted_decode_tps": 83.44178935709672,
+    "tool_calls": 12,
+    "tool_errors": 0,
+    "draft_acceptance": 0.4384920634920635
+  }
+}

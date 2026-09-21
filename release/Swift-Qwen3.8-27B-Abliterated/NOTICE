@@ -1,0 +1,34 @@
+Swift-Qwen3.8-27B
+Copyright 2026 UkisAI
+
+UkisAI's contribution (the "Swift Contribution") is licensed under the
+Swift Open License v1.0. See LICENSE.
+
+This model is a Derivative Work of Qwen3.8-27B
+  https://huggingface.co/Qwen/Qwen3.8-27B
+  Copyright 2026 Alibaba Cloud
+  Licensed under the Apache License, Version 2.0. See LICENSE-APACHE-2.0.
+
+Changes made by UkisAI (Apache License 2.0, Section 4(b) change notice):
+  - model-*.safetensors, model.safetensors.index.json: model weights were
+    fine-tuned by UkisAI (LoRA adapter trained by UkisAI and merged into the
+    Base Model weights).
+  - generation_config.json: added "min_p": 0 and "repetition_penalty": 1.0.
+  - README.md: replaced. ukisai-banner.png and swift-speed-demo.mp4 added.
+  - All other files (config.json, chat_template.jinja, tokenizer.json,
+    tokenizer_config.json, vocab.json, merges.txt, preprocessor_config.json,
+    video_preprocessor_config.json) are unmodified from Qwen3.8-27B and
+    remain under the Apache License, Version 2.0.
+
+Additional changes in Swift-Qwen3.8-27B-Abliterated:
+  - model-*.safetensors and model.safetensors.index.json: 128 attention-output
+    and MLP-down-projection weights were modified by an independently
+    reconstructed rank-6 refusal-subspace projection.
+  - README.md: replaced with this derivative's model card.
+  - abliteration_manifest.json, abliteration_direction.safetensors,
+    abliteration_config.toml, evaluation_results.json, and
+    checkpoint-verification.json: added for provenance and validation.
+  - All other checkpoint files are unchanged from the pinned
+    ukisai/Swift-Qwen3.8-27b revision.
+
+This derivative is not made or endorsed by UkisAI or Alibaba Cloud.

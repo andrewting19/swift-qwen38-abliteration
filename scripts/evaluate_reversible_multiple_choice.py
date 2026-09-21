@@ -20,6 +20,10 @@ from swift_abliteration.live_model import (
     text_backbone,
     validate_live_model,
 )
+from swift_abliteration.intervention import (
+    layerwise_weight_equivalent_ablation_hooks,
+    weight_equivalent_ablation_hooks,
+)
 
 
 LABELS = "ABCDEFGHIJ"
@@ -129,6 +133,17 @@ def main() -> int:
     parser.add_argument("--directions", type=Path, required=True)
     parser.add_argument("--direction-key", action="append", required=True)
     parser.add_argument(
+        "--separate-candidates",
+        action="store_true",
+        help="Evaluate each direction key as a separate reversible candidate.",
+    )
+    parser.add_argument(
+        "--skip-embedding-candidate-key",
+        action="append",
+        default=[],
+        help="Do not edit the embedding for this separate candidate key.",
+    )
+    parser.add_argument(
         "--dataset",
         action="append",
         required=True,
@@ -166,7 +181,24 @@ def main() -> int:
     missing = [key for key in args.direction_key if key not in directions]
     if missing:
         raise KeyError(f"Missing direction keys: {missing}")
-    basis = combine_direction_rows([directions[key] for key in args.direction_key])
+    skip_embedding_keys = set(args.skip_embedding_candidate_key)
+    unknown_skip_keys = sorted(skip_embedding_keys - set(args.direction_key))
+    if unknown_skip_keys:
+        raise KeyError(
+            f"Embedding-skip keys are not selected candidates: {unknown_skip_keys}"
+        )
+    if skip_embedding_keys and not args.separate_candidates:
+        raise ValueError(
+            "Embedding-skip keys require --separate-candidates."
+        )
+    bases = {
+        key: combine_direction_rows([directions[key]]) for key in args.direction_key
+    }
+    basis = (
+        None
+        if args.separate_candidates
+        else combine_direction_rows([directions[key] for key in args.direction_key])
+    )
 
     args.output_dir.mkdir(parents=True, exist_ok=False)
     cfg = load_config(args.config)
@@ -190,20 +222,55 @@ def main() -> int:
         write_json(args.output_dir / f"base_{name}.json", reports["base"][name])
 
     layers = list(range(cfg.edit.first_layer, cfg.edit.last_layer + 1))
-    intervention = apply_layerwise_runtime_edit(
-        model,
-        cfg,
-        {index: basis for index in layers},
-        args.alpha,
-        embedding_direction=basis if args.include_embedding else None,
-    )
-    for name, spec in dataset_specs.items():
-        reports["candidate"][name] = evaluate(
-            model, tokenizer, spec["items"], args.batch_size
+    interventions = {}
+    if args.separate_candidates:
+        for key in args.direction_key:
+            candidate_basis = bases[key]
+            if key in skip_embedding_keys and cfg.edit.include_embedding:
+                context = layerwise_weight_equivalent_ablation_hooks(
+                    model,
+                    cfg,
+                    {index: candidate_basis for index in layers},
+                    args.alpha,
+                    embedding_direction=None,
+                )
+            else:
+                context = weight_equivalent_ablation_hooks(
+                    model,
+                    cfg,
+                    candidate_basis,
+                    args.alpha,
+                    generation_uses_mtp=False,
+                )
+            reports["candidate"][key] = {}
+            with context as intervention:
+                interventions[key] = intervention
+                for name, spec in dataset_specs.items():
+                    result = evaluate(
+                        model, tokenizer, spec["items"], args.batch_size
+                    )
+                    reports["candidate"][key][name] = result
+                    write_json(
+                        args.output_dir / f"candidate_{key}_{name}.json", result
+                    )
+    else:
+        assert basis is not None
+        intervention = apply_layerwise_runtime_edit(
+            model,
+            cfg,
+            {index: basis for index in layers},
+            args.alpha,
+            embedding_direction=basis if args.include_embedding else None,
         )
-        write_json(
-            args.output_dir / f"candidate_{name}.json", reports["candidate"][name]
-        )
+        interventions["combined"] = intervention
+        for name, spec in dataset_specs.items():
+            reports["candidate"][name] = evaluate(
+                model, tokenizer, spec["items"], args.batch_size
+            )
+            write_json(
+                args.output_dir / f"candidate_{name}.json",
+                reports["candidate"][name],
+            )
 
     summary = {
         "model": cfg.model.id,
@@ -218,13 +285,37 @@ def main() -> int:
                 "sha256": spec["sha256"],
                 "count": len(spec["items"]),
                 "base_accuracy": reports["base"][name]["accuracy"],
-                "candidate_accuracy": reports["candidate"][name]["accuracy"],
+                **(
+                    {
+                        "candidates": {
+                            key: {
+                                "accuracy": reports["candidate"][key][name][
+                                    "accuracy"
+                                ],
+                                "valid_rate": reports["candidate"][key][name][
+                                    "valid_rate"
+                                ],
+                            }
+                            for key in args.direction_key
+                        }
+                    }
+                    if args.separate_candidates
+                    else {
+                        "candidate_accuracy": reports["candidate"][name][
+                            "accuracy"
+                        ],
+                        "candidate_valid_rate": reports["candidate"][name][
+                            "valid_rate"
+                        ],
+                    }
+                ),
                 "base_valid_rate": reports["base"][name]["valid_rate"],
-                "candidate_valid_rate": reports["candidate"][name]["valid_rate"],
             }
             for name, spec in dataset_specs.items()
         },
-        "intervention": intervention,
+        "interventions": interventions,
+        "separate_candidates": args.separate_candidates,
+        "skip_embedding_candidate_keys": sorted(skip_embedding_keys),
         "uses_final_test": False,
         "checkpoint_saved": False,
         "openai_models_used": False,

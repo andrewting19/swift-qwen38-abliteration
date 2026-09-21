@@ -69,8 +69,8 @@ def load_config(path: str | Path) -> ExperimentConfig:
 
 
 def _validate_config(cfg: ExperimentConfig) -> None:
-    if cfg.direction.rank != 1:
-        raise ValueError("This baseline implements one direction only (rank=1).")
+    if not 1 <= cfg.direction.rank <= cfg.model.hidden_size:
+        raise ValueError("Direction rank must be between 1 and the hidden size.")
     if not 0 <= cfg.direction.layer < cfg.model.num_layers:
         raise ValueError("Direction layer is outside the text model.")
     if not 0 <= cfg.edit.first_layer <= cfg.edit.last_layer < cfg.model.num_layers:

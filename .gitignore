@@ -31,5 +31,6 @@ work/
 .env.*
 *.pem
 *token*
+benchmarks/mtp_pi/sanitized-inference-key
 .dashboard-runtime.json
 .dashboard-results.json

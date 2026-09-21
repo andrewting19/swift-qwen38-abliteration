@@ -31,9 +31,10 @@ The direction-quality analysis and the final evaluation report are primary outpu
 - Do not quantize, publish, or upload a model.
 - Use one rented GPU at a time.
 - Do not add Vast.ai credit automatically.
-- Vast instance `51156146` is stopped with its model and judge caches retained.
-  The last observed credit was about $8.45. The stopped disk costs about
-  $0.044 per hour. Required result artifacts are present locally.
+- Vast instance `51156146` was destroyed on 2026-09-19 after local SHA-256
+  verification. Its model and judge caches are no longer retained on Vast, and
+  its approximately $0.044-per-hour storage charge has stopped. Required result
+  artifacts are present locally.
 - Do not put raw harmful prompts or harmful generations in Git or in the chat.
 - Do not send experiment prompts or responses to OpenAI models or APIs. Use only local open-weight judges for evaluation.
 
@@ -111,7 +112,8 @@ Do not use the final test until one candidate and its settings are frozen.
 The first rental completed stages 0 through 5. It skipped stage 6 because no
 first-run candidate passed the reversible behavior screen. Later rentals tested
 recovery candidates and completed the independent reconstruction search. All
-required current-run artifacts are local. Instance `51156146` is stopped.
+required current-run artifacts are local. Instance `51156146` was destroyed on
+2026-09-19 after local SHA-256 verification.
 
 Live result: Vast instance `51065040` supplied one A100 SXM4 80 GB at about $1.102/hour. The base checkpoint passed live architecture validation with PyTorch 2.9.1, CUDA 12.8, `causal-conv1d` 1.7.0, and `flash-linear-attention` 0.5.2. Activation capture and analysis of all 40 direction candidates completed. The first screen used whole-transformer-layer-output projection and remains a stress test only because it was not weight-equivalent. The replacement intervention passed numerical and live equivalence checks. The corrected matched plain arm produced 256 empty outputs and was rejected. Local open-weight WildGuard and HarmBench scoring completed with zero parse errors. The consensus winsor-995 arm removed 37.5% and 40.6% of base refusals. The standard winsor-995 arm removed 39.1% and 45.3%. Both fail the fixed 90% requirement on both harmful sets. All remote run artifacts were copied locally and verified. The final-test split remains unused, the quick capability gate was not run, and no permanent checkpoint exists.
 

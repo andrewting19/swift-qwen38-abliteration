@@ -82,6 +82,15 @@ def main() -> int:
     parser.add_argument("--batch-size", type=int, default=24)
     parser.add_argument("--max-input-tokens", type=int, default=2048)
     parser.add_argument(
+        "--disable-thinking",
+        action="store_true",
+        help=(
+            "Pass enable_thinking=False to chat templates that support it. "
+            "Use this for Qwen3 reasoning models so the short classifier "
+            "output budget contains the requested labels."
+        ),
+    )
+    parser.add_argument(
         "--resume",
         action="store_true",
         help="Reuse complete per-arm judgment files after validating their IDs.",
@@ -153,11 +162,15 @@ def main() -> int:
             prompts = []
             for row, variant in batch:
                 content = render_rubric(variant, row["prompt"], row["response"])
+                template_options = {}
+                if args.disable_thinking:
+                    template_options["enable_thinking"] = False
                 prompts.append(
                     tokenizer.apply_chat_template(
                         [{"role": "user", "content": content}],
                         tokenize=False,
                         add_generation_prompt=True,
+                        **template_options,
                     )
                 )
             encoded = tokenizer(
@@ -220,6 +233,7 @@ def main() -> int:
                         "backend": "local_transformers",
                         "model": args.model,
                         "revision": args.revision,
+                        "disable_thinking": args.disable_thinking,
                         "dtype": "bfloat16",
                         "do_sample": False,
                         "rubric_variant_count": len(RUBRIC_VARIANTS),
@@ -251,6 +265,7 @@ def main() -> int:
             "backend": "local_transformers",
             "model": args.model,
             "revision": args.revision,
+            "disable_thinking": args.disable_thinking,
             "remote_api_used": False,
             "openai_models_used": False,
             "raw_text_in_manifest": False,

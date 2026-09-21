@@ -19,6 +19,13 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(expected_writer_count(cfg), 68)
         self.assertEqual((cfg.edit.first_layer, cfg.edit.last_layer), (18, 51))
 
+    def test_rank6_release_scope_has_128_tensors(self):
+        cfg = load_config("configs/release_rank6.toml")
+        self.assertEqual(cfg.direction.rank, 6)
+        self.assertEqual(expected_writer_count(cfg), 128)
+        self.assertFalse(cfg.edit.include_embedding)
+        self.assertFalse(cfg.edit.include_mtp)
+
 
 if __name__ == "__main__":
     unittest.main()

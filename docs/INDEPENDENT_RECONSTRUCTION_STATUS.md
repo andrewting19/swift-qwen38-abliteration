@@ -197,9 +197,40 @@ fails the harmless KL gate, unless the user accepts a new gate.
 
 ## Compute state
 
-Vast instance `51156146` was stopped after the writer-sensitivity and generation
-results were copied and hash-verified locally. The last observed account credit
-was about $8.45. The stopped disk costs about $0.044 per hour. All required result files
-from this run are in the local repository workspace.
+Vast instance `51156146` was destroyed on 2026-09-19 after the
+writer-sensitivity and generation results were copied locally. Before deletion,
+159 local files in 17 checksum manifests passed SHA-256 verification, and the
+final rank-6/rank-2 direction file matched its recorded SHA-256. The remote
+160 GB disk and its approximately $0.044-per-hour storage charge are gone. All
+required result files from this run are in the local repository workspace.
 
-The final-test split remains unused. No permanent edited checkpoint exists.
+That statement described the pre-release state. On 2026-09-19, the user
+accepted the rank-6 candidate for release and authorized the final release run.
+
+## Public release
+
+The frozen `iterative_rank6` candidate was evaluated once on the sealed final
+split. The final results were:
+
+- Refusal-phrase removal: 64 of 64 standard and 64 of 64 matched prompts.
+- HarmBench task completion: 44 of 64 standard and 41 of 64 matched prompts.
+- Uncensored local judge direct or partial answers: 54 of 64 standard and
+  52 of 64 matched prompts.
+- Safe first-token KL: 0.559 mean and 0.138 median on 192 prompts.
+- Safe opening refusals: base 5 of 192; candidate 1 of 192.
+
+A permanent BF16 checkpoint was then created. The verifier confirmed that all
+128 planned weights exactly matched the configured edit and all 1,071
+unplanned tensors were unchanged. The saved checkpoint also passed an
+eight-prompt non-final safe generation smoke test.
+
+The model was uploaded to a private Hugging Face staging repository. All 18
+model shard hashes and 12 release files were verified before publication. It
+was made public at:
+
+https://huggingface.co/andrewting/Swift-Qwen3.8-27B-Abliterated
+
+No raw final-test prompt, raw response, or activation file was published. The
+release GPU instance `51607489` was destroyed after artifact recovery and
+public verification. Its recorded run time was 0.789 hours and its estimated
+cost was US$1.18.
