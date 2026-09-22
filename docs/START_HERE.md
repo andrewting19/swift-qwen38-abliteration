@@ -194,6 +194,12 @@ Current release documents:
 - [`docs/WIDE_VALIDATION_RESULTS.md`](WIDE_VALIDATION_RESULTS.md)
 - [`docs/RELEASE_PLAN.md`](RELEASE_PLAN.md)
 
+Related third-party method analysis:
+
+- [`docs/MIMO_V26_CRACK_FORENSICS.md`](MIMO_V26_CRACK_FORENSICS.md) compares
+  the public MiMo-V2.6 base and dealignai CRACK checkpoints. It is not part of
+  the Swift-Qwen3.8 release validation.
+
 The other files in `docs/` record earlier candidates, failed interventions,
 judge reassessment, and the search process. They are useful for research
 history, but they are not the source of truth for the released checkpoint.

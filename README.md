@@ -108,6 +108,7 @@ for all measured runtime results.
 | Path | Purpose |
 | --- | --- |
 | `docs/START_HERE.md` | Full project summary and file map |
+| `docs/MIMO_V26_CRACK_FORENSICS.md` | Public third-party CRACK checkpoint comparison |
 | `release/Swift-Qwen3.8-27B-Abliterated/` | Model card, edit record, aggregate results, and verification records |
 | `release/replication/` | Exact RTX 5090 download and server bundle |
 | `benchmarks/llama_pi/` | Pi replay and live-agent benchmark tools |
