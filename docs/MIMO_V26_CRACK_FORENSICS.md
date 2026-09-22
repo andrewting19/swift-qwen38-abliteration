@@ -52,6 +52,24 @@ dtype: BF16
 shape: [4096, 8192]
 ```
 
+## All-tensor sample audit
+
+A 4 KiB middle-window comparison was run for every one of the 1,969 tensors in
+the changed shard. Exactly 14 sampled windows differed. They were:
+
+```text
+model.layers.34.self_attn.o_proj.weight
+model.layers.35.self_attn.o_proj.weight
+...
+model.layers.47.self_attn.o_proj.weight
+```
+
+No sampled window from another tensor differed. This independently supports
+the model card's statement that the edit is limited to decoder attention
+output projections. It is still a sample audit, not a full checksum of each
+tensor. A change confined to a different unsampled part of a tensor would not
+be detected.
+
 ## Layer-band finding
 
 A 64 KiB middle-window comparison of every language attention output matrix
@@ -61,10 +79,8 @@ gave this pattern:
 - Layers 34 through 47: sampled windows differ.
 
 The model card states that only decoder attention output projections were
-changed. The measured layer pattern therefore supports a late 14-layer,
-attention-output-only edit. The window scan is not a full checksum of the
-unchanged tensors. A complete tensor-level audit is still required before
-using the word "only" as an independently verified statement.
+changed. The measured layer pattern and all-tensor sample audit therefore
+support a late 14-layer, attention-output-only edit.
 
 ## Rank analysis
 
@@ -161,7 +177,8 @@ reconstruction:
 5. Apply one main rank-one update to each selected attention output matrix.
 6. Use layer-specific directions and effective strengths.
 7. Leave MoE expert weights, embeddings, MTP, DFlash, vision, and audio paths
-   unchanged, subject to a future full tensor audit.
+   unchanged. File hashes and the all-tensor sample audit support this, but do
+   not replace full tensor checksums.
 8. Evaluate thinking-on and thinking-off modes separately.
 
 This differs from the released Swift-Qwen3.8 experiment in this repository.
@@ -203,6 +220,16 @@ Run the low-bandwidth layer scan:
 python scripts/inspect_remote_safetensor_edit.py \
   --mode scan \
   --layers 0-47
+```
+
+Probe every tensor in the changed shard:
+
+```bash
+python scripts/inspect_remote_safetensor_edit.py \
+  --mode scan \
+  --all-tensors \
+  --probe-bytes 4096 \
+  --workers 16
 ```
 
 Run the full rank-one analysis for the edited band:

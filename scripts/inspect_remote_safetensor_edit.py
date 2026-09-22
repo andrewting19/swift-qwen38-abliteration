@@ -9,9 +9,11 @@ the selected tensors and estimates the dominant singular update.
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import hashlib
 import json
 import struct
+import threading
 from dataclasses import dataclass
 from typing import Any
 
@@ -45,7 +47,7 @@ class RemoteSafeTensor:
     verify_tls: bool = True
 
     def __post_init__(self) -> None:
-        self.session = requests.Session()
+        self._thread_local = threading.local()
         first = self._request(self.url, 0, 7)
         if len(first.content) < 8:
             raise RuntimeError("Safetensors header-length read returned fewer than 8 bytes")
@@ -58,7 +60,9 @@ class RemoteSafeTensor:
         self.data_start = 8 + self.header_length
 
     def _request(self, url: str, start: int, end: int) -> requests.Response:
-        response = self.session.get(
+        if not hasattr(self._thread_local, "session"):
+            self._thread_local.session = requests.Session()
+        response = self._thread_local.session.get(
             url,
             headers={"Range": f"bytes={start}-{end}"},
             timeout=180,
@@ -198,6 +202,17 @@ def main() -> int:
     parser.add_argument("--mode", choices=("scan", "rank1"), default="scan")
     parser.add_argument("--probe-bytes", type=int, default=65_536)
     parser.add_argument(
+        "--all-tensors",
+        action="store_true",
+        help="In scan mode, probe every common tensor instead of the layer list.",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=8,
+        help="Concurrent range requests for --all-tensors. Default: 8.",
+    )
+    parser.add_argument(
         "--insecure",
         action="store_true",
         help="Disable TLS verification. Use only when a local CA setup requires it.",
@@ -211,6 +226,53 @@ def main() -> int:
 
     base = RemoteSafeTensor(args.base_url, verify_tls=not args.insecure)
     edited = RemoteSafeTensor(args.edited_url, verify_tls=not args.insecure)
+
+    if args.all_tensors:
+        if args.mode != "scan":
+            parser.error("--all-tensors is available only in scan mode")
+        if args.workers < 1:
+            parser.error("--workers must be at least 1")
+        names = sorted(
+            (set(base.header) & set(edited.header)) - {"__metadata__"}
+        )
+
+        def probe_name(name: str) -> dict[str, Any]:
+            validate_pair(base, edited, name)
+            base_probe = base.read_probe(name, args.probe_bytes)
+            edited_probe = edited.read_probe(name, args.probe_bytes)
+            return {
+                "tensor": name,
+                "probe_bytes": len(base_probe),
+                "base_probe_sha256": hashlib.sha256(base_probe).hexdigest(),
+                "edited_probe_sha256": hashlib.sha256(edited_probe).hexdigest(),
+            }
+
+        with concurrent.futures.ThreadPoolExecutor(
+            max_workers=args.workers
+        ) as executor:
+            probes = list(executor.map(probe_name, names))
+        changed = [
+            row
+            for row in probes
+            if row["base_probe_sha256"] != row["edited_probe_sha256"]
+        ]
+        print(
+            json.dumps(
+                {
+                    "base_url": args.base_url,
+                    "edited_url": args.edited_url,
+                    "mode": "scan_all_tensors",
+                    "tensor_count": len(names),
+                    "probe_bytes_requested_per_tensor": args.probe_bytes,
+                    "changed_probe_count": len(changed),
+                    "changed_probes": changed,
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return 0
+
     result: dict[str, Any] = {
         "base_url": args.base_url,
         "edited_url": args.edited_url,
